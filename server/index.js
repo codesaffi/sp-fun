@@ -27,6 +27,13 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 const port = process.env.PORT || 5000;
+
+app.get("/", (req, res) => {
+  res.json({
+    status: "Backend Running 🚀",
+  });
+});
+
 if (process.env.NODE_ENV !== "production") {
   app.listen(port, () => {
     console.log(`Server running on http://localhost:${port}`);
