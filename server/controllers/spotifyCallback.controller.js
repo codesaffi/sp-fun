@@ -85,7 +85,7 @@ export const spotifyCallback = async (req, res) => {
       expiresIn: "7d",
     });
 
-    const redirectUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    const redirectUrl = process.env.CLIENT_URL|| "http://localhost:5173";
     res.redirect(`${redirectUrl}/success?token=${token}`);
   } catch (error) {
     console.error("Spotify callback failed:", error.response?.data || error.message);
