@@ -7,6 +7,10 @@ export const listPosts = async (req, res) => {
   try { res.json(await populatePost(Post.find().sort({ createdAt: -1 }).limit(100))); }
   catch { res.status(500).json({ message: "Could not load the feed." }); }
 };
+export const listPostsByUser = async (req, res) => {
+  try { res.json(await populatePost(Post.find({ user: req.params.userId }).sort({ createdAt: -1 }))); }
+  catch { res.status(500).json({ message: "Could not load these posts." }); }
+};
 export const createPost = async (req, res) => {
   try {
     const { caption, type = "custom", artist, song, genres = [], musicProfile, mood, images = [] } = req.body;
@@ -29,10 +33,13 @@ export const deletePost = async (req, res) => {
 };
 export const toggleLike = async (req, res) => {
   try {
-    const post = await Post.findById(req.params.postId); if (!post) return res.status(404).json({ message: "Post not found." });
-    const id = new mongoose.Types.ObjectId(req.user.id); const liked = post.likes.some((like) => like.equals(id));
-    post.likes = liked ? post.likes.filter((like) => !like.equals(id)) : [...post.likes, id]; await post.save();
-    res.json({ liked: !liked, likes: post.likes.length });
+    const id = new mongoose.Types.ObjectId(req.user.id);
+    // Use atomic operators so concurrent clicks can never add this user twice.
+    let post = await Post.findOneAndUpdate({ _id: req.params.postId, likes: id }, { $pull: { likes: id } }, { new: true });
+    if (post) return res.json({ liked: false, likes: post.likes.length });
+    post = await Post.findByIdAndUpdate(req.params.postId, { $addToSet: { likes: id } }, { new: true });
+    if (!post) return res.status(404).json({ message: "Post not found." });
+    res.json({ liked: true, likes: post.likes.length });
   } catch { res.status(400).json({ message: "Could not update this like." }); }
 };
 export const addComment = async (req, res) => {

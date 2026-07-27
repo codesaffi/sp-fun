@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import PostCard from "../components/PostCard";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -9,6 +10,8 @@ export default function UserProfile({ userId, onBack }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [range, setRange] = useState("shortTerm");
+  const [posts, setPosts] = useState([]);
+  const [currentUserId, setCurrentUserId] = useState(null);
 
   useEffect(() => {
     if (!token || !userId) return;
@@ -25,6 +28,12 @@ export default function UserProfile({ userId, onBack }) {
 
         const data = await res.json();
         setUser(data);
+        const [postsRes, meRes] = await Promise.all([
+          fetch(`${API_URL}/api/posts/user/${userId}`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${API_URL}/api/user/me`, { headers: { Authorization: `Bearer ${token}` } }),
+        ]);
+        if (postsRes.ok) setPosts(await postsRes.json());
+        if (meRes.ok) setCurrentUserId((await meRes.json())._id);
         setError(null);
       } catch (err) {
         console.error("Error fetching user profile:", err);
@@ -120,6 +129,12 @@ export default function UserProfile({ userId, onBack }) {
           )}
         </>
       )}
+      <section className="mt-10">
+        <h3 className="mb-4 text-2xl font-semibold text-white">Posts</h3>
+        <div className="feed-list">
+          {posts.length ? posts.map((post) => <PostCard key={post._id} post={post} token={token} currentUserId={currentUserId} onChange={(updated) => setPosts((current) => updated?.deleted ? current.filter((item) => item._id !== updated._id) : updated ? current.map((item) => item._id === updated._id ? updated : item) : current)} />) : <p className="text-[#a39ba7]">No posts yet.</p>}
+        </div>
+      </section>
     </div>
   );
 }

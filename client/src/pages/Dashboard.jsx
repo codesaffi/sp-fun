@@ -6,6 +6,7 @@ import OtherUsers from "./OtherUsers";
 import MyMusicTaste from "./MyMusicTaste";
 import RecentlyPlayed from "./RecentlyPlayed";
 import AdvancedTest from "./AdvancedTest";
+import PostCard from "../components/PostCard";
 import React from "react";
 import {
   FiHome,
@@ -143,26 +144,7 @@ const nav = [
       setPostError("Connection failed. Please try again.");
     }
   };
-  const toggleLike = async (id) => {
-    const r = await fetch(`${API_URL}/api/posts/${id}/like`, {
-      method: "POST",
-      headers,
-    });
-    if (r.ok) {
-      const data = await r.json();
-      setPosts((current) =>
-        current.map((post) =>
-          post._id === id
-            ? {
-                ...post,
-                likes: Array(data.likes).fill("liked"),
-                liked: data.liked,
-              }
-            : post,
-        ),
-      );
-    }
-  };
+  const updatePost = (updated) => setPosts((current) => updated?.deleted ? current.filter((post) => post._id !== updated._id) : updated ? current.map((post) => post._id === updated._id ? updated : post) : current);
   const doLogout = () => {
     logout();
     navigate("/", { replace: true });
@@ -385,8 +367,9 @@ const nav = [
             </header>
             <div className="feed-list">
               {posts.length ? (
-                posts.map((post) => (
-                  <article key={post._id} className="feed-post">
+                posts.map((post) => (<>
+                  <PostCard key={post._id} post={post} token={token} currentUserId={user?._id} onChange={updatePost} />
+                  {/* <article key={post._id} className="feed-post">
                     <div className="post-byline">
                       <Avatar user={post.user} size="sm" />
                       <div>
@@ -411,7 +394,8 @@ const nav = [
                       </button>
                       <button>◌ {post.comments?.length || 0} comments</button>
                     </div>
-                  </article>
+                  </article>*/}
+                  </>
                 ))
               ) : (
                 <div className="empty-state">
