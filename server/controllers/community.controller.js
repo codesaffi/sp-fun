@@ -5,6 +5,7 @@ import User from "../models/User.js";
 import { AppError } from "../utils/appError.js";
 import { sanitizeString } from "../utils/sanitize.js";
 import { ensureOfficialCommunities, slugify } from "../services/community.service.js";
+import { createNotification } from "../services/notification.service.js";
 
 const memberCount = async (community) => CommunityMember.countDocuments({ community: community._id });
 const serialize = async (community, userId) => {
@@ -88,7 +89,13 @@ export const getCommunity = async (req, res) => {
 export const joinCommunity = async (req, res) => {
   const community = await requireCommunity(req.params.slug);
   if (community.privacy === "private") throw new AppError("This private community requires an invitation.", 403);
-  await CommunityMember.updateOne({ community: community._id, user: req.user.id }, { $setOnInsert: { role: "member" } }, { upsert: true });
+  const joined = await CommunityMember.updateOne({ community: community._id, user: req.user.id }, { $setOnInsert: { role: "member" } }, { upsert: true });
+  if (joined.upsertedCount) {
+    const admin = await CommunityMember.findOne({ community: community._id, role: "admin" });
+    if (admin) createNotification({ recipient: admin.user, sender: req.user.id, community: community._id, type: "community_join", title: "New community member", message: `Someone joined your ${community.name} community.`, dedupeKey: `community-join:${community._id}:${req.user.id}` }).catch(() => {});
+    const count = await memberCount(community);
+    if ([100, 500, 1000].includes(count) && admin) createNotification({ recipient: admin.user, community: community._id, type: "community_milestone", title: "Community milestone", message: `Your ${community.name} community reached ${count} members.`, dedupeKey: `community-milestone:${community._id}:${count}` }).catch(() => {});
+  }
   res.json(await serialize(community, req.user.id));
 };
 export const leaveCommunity = async (req, res) => {
@@ -97,6 +104,8 @@ export const leaveCommunity = async (req, res) => {
   if (!membership) throw new AppError("You have not joined this community.", 400);
   if (membership.role === "admin") throw new AppError("Transfer or delete the community before leaving it.", 400);
   await membership.deleteOne();
+  const admin = await CommunityMember.findOne({ community: community._id, role: "admin" });
+  if (admin) createNotification({ recipient: admin.user, sender: req.user.id, community: community._id, type: "community_leave", title: "Member left", message: `A member left your ${community.name} community.`, dedupeKey: `community-leave:${community._id}:${req.user.id}:${Date.now()}` }).catch(() => {});
   res.status(204).end();
 };
 export const updateCommunity = async (req, res) => {

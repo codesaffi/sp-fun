@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import React from "react";
+import NotificationCenter from "./NotificationCenter";
 
 export default function Navbar() {
   const { token, logout } = useAuth();
@@ -34,6 +35,7 @@ export default function Navbar() {
             </NavLink>
             {token && (
               <>
+                <NotificationCenter />
                 <NavLink
                   to="/dashboard"
                   className={({ isActive }) =>

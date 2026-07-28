@@ -9,6 +9,7 @@ import socialRoutes from "./routes/social.routes.js";
 import postRoutes from "./routes/post.routes.js";
 import diaryRoutes from "./routes/diary.routes.js";
 import communityRoutes from "./routes/community.routes.js";
+import notificationRoutes from "./routes/notification.routes.js";
 import { securityMiddleware } from "./middleware/security.middleware.js";
 import {
   notFoundHandler,
@@ -29,6 +30,7 @@ app.use("/api/social", socialRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api/diary", diaryRoutes);
 app.use("/api/communities", communityRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

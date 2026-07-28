@@ -8,6 +8,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Diary from "./pages/Diary";
 import DiaryDetail from "./pages/DiaryDetail";
 import Communities from "./pages/Communities";
+import Notifications from "./pages/Notifications";
 
 function AppRoutes() {
   const location = useLocation();
@@ -46,6 +47,7 @@ function AppRoutes() {
         />
         <Route path="/communities" element={<ProtectedRoute><Communities /></ProtectedRoute>} />
         <Route path="/communities/:slug" element={<ProtectedRoute><Communities /></ProtectedRoute>} />
+        <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
       </Routes>
     </>
   );

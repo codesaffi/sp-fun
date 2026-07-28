@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { AppError } from "../utils/appError.js";
 import { analyseUser } from "../services/musicInsights.service.js";
 import { requestSpotifyAccessToken } from "../services/spotify.service.js";
+import { createNotification } from "../services/notification.service.js";
 
 const spotifyApiGet = async (accessToken, url) => {
   const response = await axios.get(url, {
@@ -84,6 +85,7 @@ export const spotifyCallback = async (req, res) => {
         refreshToken,
         stats: { shortTerm, mediumTerm, longTerm },
       });
+      await createNotification({ recipient: user._id, type: "welcome", title: "Welcome to MusicMatch", message: "Explore your Spotify stats, communities, diary, and music matches.", dedupeKey: "welcome" });
     } else {
       user.accessToken = accessToken;
       user.refreshToken = refreshToken;

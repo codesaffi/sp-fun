@@ -9,6 +9,7 @@ import {
   profileSignals,
 } from "../services/musicInsights.service.js";
 import { refreshSpotifyStats } from "../services/spotify.service.js";
+import { createNotification } from "../services/notification.service.js";
 
 const publicUser = (user) => ({
   _id: user._id,
@@ -110,15 +111,21 @@ export const leaderboard = async (req, res) => {
   const users = await User.find({ _id: { $ne: req.user.id } }).select(
     "-accessToken -refreshToken",
   );
-  res.json(
-    users
+  const ranked = users
       .map((user) => ({
         ...publicUser(user),
         compatibility: compatibility(me, user),
       }))
       .sort((a, b) => b.compatibility.score - a.compatibility.score)
-      .slice(0, 10),
-  );
+      .slice(0, 10);
+  await Promise.all(ranked.filter((entry) => entry.compatibility.score >= 80).map((entry) => {
+    const bucket = Math.floor(entry.compatibility.score / 5) * 5;
+    return Promise.all([
+      createNotification({ recipient: me._id, relatedUser: entry._id, type: "music_match", title: "New music match", message: `You have a ${entry.compatibility.score}% music match with ${entry.name}.`, dedupeKey: `match:${entry._id}:${bucket}` }),
+      createNotification({ recipient: entry._id, relatedUser: me._id, type: "music_match", title: "New music match", message: `You have a ${entry.compatibility.score}% music match with ${me.name}.`, dedupeKey: `match:${me._id}:${bucket}` }),
+    ]);
+  }));
+  res.json(ranked);
 };
 
 export const compare = async (req, res) => {

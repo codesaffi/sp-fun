@@ -15,6 +15,7 @@ import {
   FiMusic,
   FiGrid,
   FiBookOpen,
+  FiBell,
   FiLogOut,
 } from "react-icons/fi";
 
@@ -94,6 +95,7 @@ export default function Dashboard() {
     { id: "feed", label: "Feed", icon: <MdDynamicFeed /> },
     { id: "discover", label: "Search", icon: <FiSearch /> },
     { id: "matches", label: "Matches", icon: <FiUsers /> },
+    { id: "notifications", label: "Notifications", icon: <FiBell /> },
     { id: "library", label: "Library", icon: <FiMusic /> },
     { id: "diary", label: "Music Diary", icon: <FiBookOpen /> },
     { id: "community", label: "Community", icon: <FiGrid /> },
@@ -174,6 +176,8 @@ export default function Dashboard() {
               onClick={() => {
                 if (item.id === "logout") {
                   doLogout();
+                } else if (item.id === "notifications") {
+                  navigate("/notifications");
                 } else if (item.id === "diary") {
                   navigate("/diary");
                 } else if (item.id === "community") {
@@ -219,7 +223,6 @@ export default function Dashboard() {
                   Here’s what your music is saying today.
                 </p>
               </div>
-              <button className="bell">♧</button>
             </header>
             <section className="hero-card">
               <div className="hero-glow" />

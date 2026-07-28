@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import Post from "../models/Post.js";
 import Community from "../models/Community.js";
 import CommunityMember from "../models/CommunityMember.js";
-import Notification from "../models/Notification.js";
+import { createNotification, notifyMentions } from "../services/notification.service.js";
 
 const populatePost = (query) =>
   query
@@ -66,6 +66,11 @@ export const createPost = async (req, res) => {
       images,
       community: community?._id,
     });
+    if (community) {
+      const members = await CommunityMember.find({ community: community._id, user: { $ne: req.user.id } }).select("user");
+      await Promise.all(members.map((member) => createNotification({ recipient: member.user, sender: req.user.id, type: "community_post", title: "New community post", message: `A member posted in ${community.name}.`, post: post._id, community: community._id, dedupeKey: `community-post:${post._id}:${member.user}` })));
+      await notifyMentions({ text: caption, sender: req.user.id, post: post._id, community: community._id });
+    }
     res.status(201).json(await populatePost(Post.findById(post._id)));
   } catch {
     res.status(400).json({ message: "Could not create this post." });
@@ -120,8 +125,9 @@ export const toggleLike = async (req, res) => {
       { new: true },
     );
     if (!post) return res.status(404).json({ message: "Post not found." });
-    if (post.community && String(post.user) !== String(req.user.id)) {
-      Notification.create({ recipient: post.user, actor: req.user.id, post: post._id, type: "community_like" }).catch(() => {});
+    if (String(post.user) !== String(req.user.id)) {
+      createNotification({ recipient: post.user, sender: req.user.id, post: post._id, community: post.community, type: "post_like", title: "Your post got a like", message: "Someone liked your post.", dedupeKey: `post-like:${post._id}:${req.user.id}` }).catch(() => {});
+      if ([25, 50, 100].includes(post.likes.length)) createNotification({ recipient: post.user, post: post._id, community: post.community, type: "popular_post", title: "Your post is getting popular", message: `Your post reached ${post.likes.length} likes.`, dedupeKey: `popular-post:${post._id}:${post.likes.length}` }).catch(() => {});
     }
     res.json({ liked: true, likes: post.likes.length });
   } catch {
@@ -139,9 +145,10 @@ export const addComment = async (req, res) => {
     }
     post.comments.push({ user: req.user.id, text: req.body.text });
     await post.save();
-    if (post.community && String(post.user) !== String(req.user.id)) {
-      Notification.create({ recipient: post.user, actor: req.user.id, post: post._id, type: "community_comment" }).catch(() => {});
+    if (String(post.user) !== String(req.user.id)) {
+      createNotification({ recipient: post.user, sender: req.user.id, post: post._id, community: post.community, type: "post_comment", title: "New comment", message: "Someone commented on your post.", dedupeKey: `post-comment:${post._id}:${req.user.id}:${post.comments.length}` }).catch(() => {});
     }
+    if (post.community) notifyMentions({ text: req.body.text, sender: req.user.id, post: post._id, community: post.community }).catch(() => {});
     res.status(201).json(await populatePost(Post.findById(post._id)));
   } catch {
     res.status(400).json({ message: "Could not add this comment." });

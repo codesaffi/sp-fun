@@ -3,6 +3,7 @@ import Diary from "../models/Diary.js";
 import User from "../models/User.js";
 import { spotifyApiRequest } from "../services/spotify.service.js";
 import { AppError } from "../utils/appError.js";
+import { createNotification } from "../services/notification.service.js";
 
 const populateDiary = (query) =>
   query
@@ -136,6 +137,8 @@ export const updateDiary = async (req, res) => {
     { new: true, runValidators: true },
   );
   if (!entry) throw new AppError("Diary entry not found.", 404);
+  if (String(entry.user) !== String(req.user.id)) createNotification({ recipient: entry.user, sender: req.user.id, diary: entry._id, type: "diary_like", title: "Your diary review got a like", message: "Someone liked your diary review.", dedupeKey: `diary-like:${entry._id}:${req.user.id}` }).catch(() => {});
+  if ([25, 50, 100].includes(entry.likes.length)) createNotification({ recipient: entry.user, diary: entry._id, type: "trending_review", title: "Your review is trending", message: `Your diary review reached ${entry.likes.length} likes.`, dedupeKey: `trending-review:${entry._id}:${entry.likes.length}` }).catch(() => {});
   res.json(await populateDiary(Diary.findById(entry._id)));
 };
 export const deleteDiary = async (req, res) => {
@@ -181,5 +184,6 @@ export const addDiaryComment = async (req, res) => {
   if (!entry) throw new AppError("Diary entry not found.", 404);
   entry.comments.push({ user: req.user.id, text: req.body.text });
   await entry.save();
+  if (String(entry.user) !== String(req.user.id)) createNotification({ recipient: entry.user, sender: req.user.id, diary: entry._id, type: "diary_comment", title: "New diary comment", message: "Someone commented on your diary review.", dedupeKey: `diary-comment:${entry._id}:${req.user.id}:${entry.comments.length}` }).catch(() => {});
   res.status(201).json(await populateDiary(Diary.findById(entry._id)));
 };
