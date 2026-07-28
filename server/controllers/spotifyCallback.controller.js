@@ -30,14 +30,26 @@ export const spotifyCallback = async (req, res) => {
     const refreshToken = tokenResponse.refresh_token;
 
     if (!accessToken || !refreshToken) {
-      throw new AppError("Spotify token exchange returned incomplete credentials", 500);
+      throw new AppError(
+        "Spotify token exchange returned incomplete credentials",
+        500,
+      );
     }
 
-    const spotifyUser = await spotifyApiGet(accessToken, "https://api.spotify.com/v1/me");
+    const spotifyUser = await spotifyApiGet(
+      accessToken,
+      "https://api.spotify.com/v1/me",
+    );
 
     const fetchTop = async (range) => {
-      const topArtistsRes = await spotifyApiGet(accessToken, `https://api.spotify.com/v1/me/top/artists?limit=10&time_range=${range}`);
-      const topTracksRes = await spotifyApiGet(accessToken, `https://api.spotify.com/v1/me/top/tracks?limit=10&time_range=${range}`);
+      const topArtistsRes = await spotifyApiGet(
+        accessToken,
+        `https://api.spotify.com/v1/me/top/artists?limit=10&time_range=${range}`,
+      );
+      const topTracksRes = await spotifyApiGet(
+        accessToken,
+        `https://api.spotify.com/v1/me/top/tracks?limit=10&time_range=${range}`,
+      );
 
       const topArtists = (topArtistsRes.items || []).map((artist) => ({
         name: artist.name,
@@ -85,10 +97,13 @@ export const spotifyCallback = async (req, res) => {
       expiresIn: "7d",
     });
 
-    const redirectUrl = process.env.CLIENT_URL|| "http://localhost:5173";
+    const redirectUrl = process.env.CLIENT_URL || "http://localhost:5173";
     res.redirect(`${redirectUrl}/success?token=${token}`);
   } catch (error) {
-    console.error("Spotify callback failed:", error.response?.data || error.message);
+    console.error(
+      "Spotify callback failed:",
+      error.response?.data || error.message,
+    );
     throw new AppError("Spotify login failed", 500);
   }
 };

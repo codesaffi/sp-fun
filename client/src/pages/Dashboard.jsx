@@ -14,6 +14,7 @@ import {
   FiUsers,
   FiMusic,
   FiGrid,
+  FiBookOpen,
   FiLogOut,
 } from "react-icons/fi";
 
@@ -56,7 +57,9 @@ export default function Dashboard() {
   useEffect(() => {
     if (!token) return;
     Promise.all([
-      fetch(`${api}/insights`, { headers }).then((r) => r.ok && r.json()),
+      fetch(`${api}/insights?refresh=true`, { headers }).then(
+        (r) => r.ok && r.json(),
+      ),
       fetch(`${api}/leaderboard`, { headers }).then((r) => r.ok && r.json()),
     ])
       .then(([me, board]) => {
@@ -86,15 +89,16 @@ export default function Dashboard() {
     const response = await fetch(`${api}/compare/${person._id}`, { headers });
     if (response.ok) setCompare(await response.json());
   };
-const nav = [
-  { id: "home", label: "Home", icon: <FiHome /> },
-  { id: "feed", label: "Feed", icon: <MdDynamicFeed /> },
-  { id: "discover", label: "Search", icon: <FiSearch /> },
-  { id: "matches", label: "Matches", icon: <FiUsers /> },
-  { id: "library", label: "Library", icon: <FiMusic /> },
-  { id: "community", label: "Community", icon: <FiGrid /> },
-  { id: "logout", label: "Logout", icon: <FiLogOut /> },
-];
+  const nav = [
+    { id: "home", label: "Home", icon: <FiHome /> },
+    { id: "feed", label: "Feed", icon: <MdDynamicFeed /> },
+    { id: "discover", label: "Search", icon: <FiSearch /> },
+    { id: "matches", label: "Matches", icon: <FiUsers /> },
+    { id: "library", label: "Library", icon: <FiMusic /> },
+    { id: "diary", label: "Music Diary", icon: <FiBookOpen /> },
+    { id: "community", label: "Community", icon: <FiGrid /> },
+    { id: "logout", label: "Logout", icon: <FiLogOut /> },
+  ];
   const user = insights?.user;
   const demo = !insights;
   const genres = insights?.topGenres?.length
@@ -144,7 +148,14 @@ const nav = [
       setPostError("Connection failed. Please try again.");
     }
   };
-  const updatePost = (updated) => setPosts((current) => updated?.deleted ? current.filter((post) => post._id !== updated._id) : updated ? current.map((post) => post._id === updated._id ? updated : post) : current);
+  const updatePost = (updated) =>
+    setPosts((current) =>
+      updated?.deleted
+        ? current.filter((post) => post._id !== updated._id)
+        : updated
+          ? current.map((post) => (post._id === updated._id ? updated : post))
+          : current,
+    );
   const doLogout = () => {
     logout();
     navigate("/", { replace: true });
@@ -156,28 +167,30 @@ const nav = [
         <div className="brand">
           <span className="brand-mark">m</span> melody
         </div>
-<div className="nav-group">
-  {nav.map((item) => (
-    <button
-      key={item.id}
-      onClick={() => {
-        if (item.id === "logout") {
-          doLogout();
-        } else {
-          setView(item.id);
-        }
-      }}
-      className={
-        view === item.id && item.id !== "logout"
-          ? "nav-item active"
-          : "nav-item"
-      }
-    >
-      <span>{item.icon}</span>
-      {item.label}
-    </button>
-  ))}
-</div>
+        <div className="nav-group">
+          {nav.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => {
+                if (item.id === "logout") {
+                  doLogout();
+                } else if (item.id === "diary") {
+                  navigate("/diary");
+                } else {
+                  setView(item.id);
+                }
+              }}
+              className={
+                view === item.id && item.id !== "logout"
+                  ? "nav-item active"
+                  : "nav-item"
+              }
+            >
+              <span>{item.icon}</span>
+              {item.label}
+            </button>
+          ))}
+        </div>
         {/* <div className="side-bottom">
           <button className="nav-item" onClick={doLogout}>
             <FiLogOut />
@@ -367,9 +380,16 @@ const nav = [
             </header>
             <div className="feed-list">
               {posts.length ? (
-                posts.map((post) => (<>
-                  <PostCard key={post._id} post={post} token={token} currentUserId={user?._id} onChange={updatePost} />
-                  {/* <article key={post._id} className="feed-post">
+                posts.map((post) => (
+                  <>
+                    <PostCard
+                      key={post._id}
+                      post={post}
+                      token={token}
+                      currentUserId={user?._id}
+                      onChange={updatePost}
+                    />
+                    {/* <article key={post._id} className="feed-post">
                     <div className="post-byline">
                       <Avatar user={post.user} size="sm" />
                       <div>

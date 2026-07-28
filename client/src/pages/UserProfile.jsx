@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import PostCard from "../components/PostCard";
+import DiaryEntryCard from "../components/DiaryEntryCard";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -12,6 +13,8 @@ export default function UserProfile({ userId, onBack }) {
   const [range, setRange] = useState("shortTerm");
   const [posts, setPosts] = useState([]);
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [diary, setDiary] = useState([]);
+  const [showDiary, setShowDiary] = useState(false);
 
   useEffect(() => {
     if (!token || !userId) return;
@@ -29,11 +32,19 @@ export default function UserProfile({ userId, onBack }) {
         const data = await res.json();
         setUser(data);
         const [postsRes, meRes] = await Promise.all([
-          fetch(`${API_URL}/api/posts/user/${userId}`, { headers: { Authorization: `Bearer ${token}` } }),
-          fetch(`${API_URL}/api/user/me`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${API_URL}/api/posts/user/${userId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(`${API_URL}/api/user/me`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
         ]);
         if (postsRes.ok) setPosts(await postsRes.json());
         if (meRes.ok) setCurrentUserId((await meRes.json())._id);
+        const diaryRes = await fetch(`${API_URL}/api/diary/user/${userId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (diaryRes.ok) setDiary(await diaryRes.json());
         setError(null);
       } catch (err) {
         console.error("Error fetching user profile:", err);
@@ -46,9 +57,20 @@ export default function UserProfile({ userId, onBack }) {
     fetchUserProfile();
   }, [token, userId]);
 
-  if (loading) return <div className="py-10 text-center text-[#c7bcc9]">Loading user profile...</div>;
-  if (error) return <div className="py-10 text-center text-[#ff8c8c]">Error: {error}</div>;
-  if (!user) return <div className="py-10 text-center text-[#c7bcc9]">User not found</div>;
+  if (loading)
+    return (
+      <div className="py-10 text-center text-[#c7bcc9]">
+        Loading user profile...
+      </div>
+    );
+  if (error)
+    return (
+      <div className="py-10 text-center text-[#ff8c8c]">Error: {error}</div>
+    );
+  if (!user)
+    return (
+      <div className="py-10 text-center text-[#c7bcc9]">User not found</div>
+    );
 
   const stats = user.stats ? user.stats[range] : null;
 
@@ -64,7 +86,11 @@ export default function UserProfile({ userId, onBack }) {
       <div className="mb-8 rounded-3xl border border-white/10 bg-[#16131b] p-5 sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           {user.avatar ? (
-            <img src={user.avatar} alt={user.name} className="h-20 w-20 rounded-full object-cover sm:h-24 sm:w-24" />
+            <img
+              src={user.avatar}
+              alt={user.name}
+              className="h-20 w-20 rounded-full object-cover sm:h-24 sm:w-24"
+            />
           ) : (
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#2a2330] text-lg font-semibold text-[#d8fa61] sm:h-24 sm:w-24">
               {user.name?.slice(0, 2).toUpperCase() || "U"}
@@ -87,54 +113,141 @@ export default function UserProfile({ userId, onBack }) {
             key={option.id}
             onClick={() => setRange(option.id)}
             className={`min-h-11 rounded-full px-4 py-2 text-sm font-semibold transition ${
-              range === option.id ? "bg-[#d8fa61] text-[#1f2914]" : "bg-[#1d1824] text-[#f8f4f8]"
+              range === option.id
+                ? "bg-[#d8fa61] text-[#1f2914]"
+                : "bg-[#1d1824] text-[#f8f4f8]"
             }`}
           >
             {option.label}
           </button>
         ))}
+        <button
+          onClick={() => setShowDiary((current) => !current)}
+          className={`min-h-11 rounded-full px-4 py-2 text-sm font-semibold transition ${showDiary ? "bg-[#d8fa61] text-[#1f2914]" : "bg-[#1d1824] text-[#f8f4f8]"}`}
+        >
+          Music Diary
+        </button>
       </div>
 
-      {!user.stats ? (
-        <p className="text-lg text-[#a39ba7]">No stats data available for this user.</p>
-      ) : (
-        <>
-          <h3 className="mb-4 mt-8 text-2xl font-semibold text-white">Top artists</h3>
-          {stats && stats.topArtists && stats.topArtists.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {stats.topArtists.map((artist, index) => (
-                <div key={index} className="rounded-[20px] border border-white/10 bg-[#151219] p-4 text-center">
-                  <img src={artist.image} alt={artist.name} className="mb-3 h-36 w-full rounded-xl object-cover" />
-                  <p className="font-semibold text-white">{artist.name}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-[#a39ba7]">No artists data available for this period.</p>
-          )}
+      {!showDiary &&
+        (!user.stats ? (
+          <p className="text-lg text-[#a39ba7]">
+            No stats data available for this user.
+          </p>
+        ) : (
+          <>
+            <h3 className="mb-4 mt-8 text-2xl font-semibold text-white">
+              Top artists
+            </h3>
+            {stats && stats.topArtists && stats.topArtists.length > 0 ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {stats.topArtists.map((artist, index) => (
+                  <div
+                    key={index}
+                    className="rounded-[20px] border border-white/10 bg-[#151219] p-4 text-center"
+                  >
+                    <img
+                      src={artist.image}
+                      alt={artist.name}
+                      className="mb-3 h-36 w-full rounded-xl object-cover"
+                    />
+                    <p className="font-semibold text-white">{artist.name}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[#a39ba7]">
+                No artists data available for this period.
+              </p>
+            )}
 
-          <h3 className="mb-4 mt-8 text-2xl font-semibold text-white">Top tracks</h3>
-          {stats && stats.topTracks && stats.topTracks.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {stats.topTracks.map((track, index) => (
-                <div key={index} className="rounded-[20px] border border-white/10 bg-[#151219] p-4 text-center">
-                  <img src={track.image} alt={track.name} className="mb-3 h-36 w-full rounded-xl object-cover" />
-                  <p className="font-semibold text-white">{track.name}</p>
-                  <p className="mt-1 text-sm text-[#a39ba7]">{track.artist}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-[#a39ba7]">No tracks data available for this period.</p>
-          )}
-        </>
-      )}
+            <h3 className="mb-4 mt-8 text-2xl font-semibold text-white">
+              Top tracks
+            </h3>
+            {stats && stats.topTracks && stats.topTracks.length > 0 ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {stats.topTracks.map((track, index) => (
+                  <div
+                    key={index}
+                    className="rounded-[20px] border border-white/10 bg-[#151219] p-4 text-center"
+                  >
+                    <img
+                      src={track.image}
+                      alt={track.name}
+                      className="mb-3 h-36 w-full rounded-xl object-cover"
+                    />
+                    <p className="font-semibold text-white">{track.name}</p>
+                    <p className="mt-1 text-sm text-[#a39ba7]">
+                      {track.artist}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[#a39ba7]">
+                No tracks data available for this period.
+              </p>
+            )}
+          </>
+        ))}
       <section className="mt-10">
         <h3 className="mb-4 text-2xl font-semibold text-white">Posts</h3>
         <div className="feed-list">
-          {posts.length ? posts.map((post) => <PostCard key={post._id} post={post} token={token} currentUserId={currentUserId} onChange={(updated) => setPosts((current) => updated?.deleted ? current.filter((item) => item._id !== updated._id) : updated ? current.map((item) => item._id === updated._id ? updated : item) : current)} />) : <p className="text-[#a39ba7]">No posts yet.</p>}
+          {posts.length ? (
+            posts.map((post) => (
+              <PostCard
+                key={post._id}
+                post={post}
+                token={token}
+                currentUserId={currentUserId}
+                onChange={(updated) =>
+                  setPosts((current) =>
+                    updated?.deleted
+                      ? current.filter((item) => item._id !== updated._id)
+                      : updated
+                        ? current.map((item) =>
+                            item._id === updated._id ? updated : item,
+                          )
+                        : current,
+                  )
+                }
+              />
+            ))
+          ) : (
+            <p className="text-[#a39ba7]">No posts yet.</p>
+          )}
         </div>
       </section>
+      {showDiary && (
+        <section className="mt-10">
+          <h3 className="mb-4 text-2xl font-semibold text-white">
+            Music Diary
+          </h3>
+          <div className="feed-list">
+            {diary.length ? (
+              diary.map((entry) => (
+                <DiaryEntryCard
+                  key={entry._id}
+                  entry={entry}
+                  token={token}
+                  currentUserId={currentUserId}
+                  onChange={(updated) =>
+                    setDiary((current) =>
+                      updated
+                        ? current.map((item) =>
+                            item._id === updated._id ? updated : item,
+                          )
+                        : current,
+                    )
+                  }
+                />
+              ))
+            ) : (
+              <p className="text-[#a39ba7]">No diary entries yet.</p>
+            )}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

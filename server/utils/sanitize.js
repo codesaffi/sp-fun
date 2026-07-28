@@ -6,6 +6,9 @@ export const sanitizeString = (value) => {
 export const sanitizeObject = (obj) => {
   if (!obj || typeof obj !== "object") return obj;
   return Object.fromEntries(
-    Object.entries(obj).map(([key, value]) => [key, typeof value === "string" ? sanitizeString(value) : value])
+    Object.entries(obj).map(([key, value]) => [
+      key,
+      typeof value === "string" ? sanitizeString(value) : value,
+    ]),
   );
 };

@@ -23,13 +23,32 @@ export default function Navbar() {
 
         <div className="navbar-actions">
           <div className="desktop-nav">
-            <NavLink to="/" className={({ isActive }) => (isActive ? "nav-link active" : "nav-link")} end>
+            <NavLink
+              to="/"
+              className={({ isActive }) =>
+                isActive ? "nav-link active" : "nav-link"
+              }
+              end
+            >
               Home
             </NavLink>
             {token && (
               <>
-                <NavLink to="/dashboard" className={({ isActive }) => (isActive ? "nav-link active" : "nav-link")}>
+                <NavLink
+                  to="/dashboard"
+                  className={({ isActive }) =>
+                    isActive ? "nav-link active" : "nav-link"
+                  }
+                >
                   Dashboard
+                </NavLink>
+                <NavLink
+                  to="/diary"
+                  className={({ isActive }) =>
+                    isActive ? "nav-link active" : "nav-link"
+                  }
+                >
+                  Music Diary
                 </NavLink>
                 <button onClick={handleLogout} className="nav-link danger">
                   Logout
@@ -50,16 +69,45 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {menuOpen && <button type="button" className="nav-overlay" onClick={closeMenu} aria-label="Close navigation" />}
+      {menuOpen && (
+        <button
+          type="button"
+          className="nav-overlay"
+          onClick={closeMenu}
+          aria-label="Close navigation"
+        />
+      )}
 
       <div className={`mobile-nav-panel${menuOpen ? " open" : ""}`}>
-        <NavLink to="/" className={({ isActive }) => (isActive ? "mobile-nav-link active" : "mobile-nav-link")} end onClick={closeMenu}>
+        <NavLink
+          to="/"
+          className={({ isActive }) =>
+            isActive ? "mobile-nav-link active" : "mobile-nav-link"
+          }
+          end
+          onClick={closeMenu}
+        >
           Home
         </NavLink>
         {token && (
           <>
-            <NavLink to="/dashboard" className={({ isActive }) => (isActive ? "mobile-nav-link active" : "mobile-nav-link")} onClick={closeMenu}>
+            <NavLink
+              to="/dashboard"
+              className={({ isActive }) =>
+                isActive ? "mobile-nav-link active" : "mobile-nav-link"
+              }
+              onClick={closeMenu}
+            >
               Dashboard
+            </NavLink>
+            <NavLink
+              to="/diary"
+              className={({ isActive }) =>
+                isActive ? "mobile-nav-link active" : "mobile-nav-link"
+              }
+              onClick={closeMenu}
+            >
+              Music Diary
             </NavLink>
             <button onClick={handleLogout} className="mobile-nav-link danger">
               Logout

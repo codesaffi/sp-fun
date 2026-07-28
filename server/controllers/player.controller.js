@@ -6,10 +6,12 @@ export const getRecentlyPlayed = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
 
-    if (!user)
-      return res.status(404).json({ message: "User not found" });
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    const response = await spotifyApiRequest(user, "https://api.spotify.com/v1/me/player/recently-played?limit=20");
+    const response = await spotifyApiRequest(
+      user,
+      "https://api.spotify.com/v1/me/player/recently-played?limit=20",
+    );
 
     const tracks = (response.data.items || []).map((item) => ({
       name: item.track.name,
@@ -24,6 +26,14 @@ export const getRecentlyPlayed = async (req, res) => {
 
     res.json(tracks);
   } catch (error) {
-    throw new AppError("Failed to fetch recently played tracks", error.response?.status || 500);
+    if (error instanceof AppError) throw error;
+    console.error(
+      "Recently played Spotify request failed:",
+      error.response?.data || error.message,
+    );
+    throw new AppError(
+      "Failed to fetch recently played tracks",
+      error.response?.status || 500,
+    );
   }
 };

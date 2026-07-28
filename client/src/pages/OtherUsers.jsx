@@ -39,11 +39,22 @@ export default function OtherUsers() {
     fetchUsers();
   }, [token]);
 
-  if (loading) return <div className="py-10 text-center text-[#c7bcc9]">Loading users...</div>;
-  if (error) return <div className="py-10 text-center text-[#ff8c8c]">Error: {error}</div>;
+  if (loading)
+    return (
+      <div className="py-10 text-center text-[#c7bcc9]">Loading users...</div>
+    );
+  if (error)
+    return (
+      <div className="py-10 text-center text-[#ff8c8c]">Error: {error}</div>
+    );
 
   if (selectedUserId) {
-    return <UserProfile userId={selectedUserId} onBack={() => setSelectedUserId(null)} />;
+    return (
+      <UserProfile
+        userId={selectedUserId}
+        onBack={() => setSelectedUserId(null)}
+      />
+    );
   }
 
   return (
@@ -51,9 +62,13 @@ export default function OtherUsers() {
       <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="eyebrow">DISCOVER LISTENERS</p>
-          <h2 className="text-2xl font-semibold text-white sm:text-3xl">Other users</h2>
+          <h2 className="text-2xl font-semibold text-white sm:text-3xl">
+            Other users
+          </h2>
         </div>
-        <p className="text-sm text-[#a39ba7]">Tap a profile to see their music story.</p>
+        <p className="text-sm text-[#a39ba7]">
+          Tap a profile to see their music story.
+        </p>
       </div>
 
       {users.length === 0 ? (
@@ -70,36 +85,55 @@ export default function OtherUsers() {
             >
               <div className="mb-4 flex items-center gap-3">
                 {user.avatar ? (
-                  <img src={user.avatar} alt={user.name} className="h-14 w-14 rounded-full object-cover" />
+                  <img
+                    src={user.avatar}
+                    alt={user.name}
+                    className="h-14 w-14 rounded-full object-cover"
+                  />
                 ) : (
                   <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#2a2330] text-sm font-semibold text-[#d8fa61]">
                     {user.name?.slice(0, 2).toUpperCase() || "U"}
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-base font-semibold text-white">{user.name}</p>
-                  <p className="truncate text-sm text-[#a39ba7]">{user.email}</p>
+                  <p className="truncate text-base font-semibold text-white">
+                    {user.name}
+                  </p>
+                  <p className="truncate text-sm text-[#a39ba7]">
+                    {user.email}
+                  </p>
                 </div>
               </div>
 
               <div className="rounded-2xl border border-white/5 bg-[#0f0d13] p-3">
                 {user.stats && user.stats.shortTerm ? (
                   <>
-                    <p className="mb-2 text-sm font-semibold text-white">Top artists this month</p>
+                    <p className="mb-2 text-sm font-semibold text-white">
+                      Top artists this month
+                    </p>
                     <div className="space-y-1">
-                      {user.stats.shortTerm.topArtists.slice(0, 3).map((artist, idx) => (
-                        <p key={idx} className="truncate text-xs text-[#b6adb8]">
-                          {idx + 1}. {artist.name}
-                        </p>
-                      ))}
+                      {user.stats.shortTerm.topArtists
+                        .slice(0, 3)
+                        .map((artist, idx) => (
+                          <p
+                            key={idx}
+                            className="truncate text-xs text-[#b6adb8]"
+                          >
+                            {idx + 1}. {artist.name}
+                          </p>
+                        ))}
                     </div>
                   </>
                 ) : (
-                  <p className="text-sm text-[#b6adb8]">Taste data will appear here soon.</p>
+                  <p className="text-sm text-[#b6adb8]">
+                    Taste data will appear here soon.
+                  </p>
                 )}
               </div>
 
-              <p className="mt-4 text-sm font-semibold text-[#d8fa61]">View full profile →</p>
+              <p className="mt-4 text-sm font-semibold text-[#d8fa61]">
+                View full profile →
+              </p>
             </div>
           ))}
         </div>

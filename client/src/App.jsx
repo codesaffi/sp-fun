@@ -5,12 +5,14 @@ import Dashboard from "./pages/Dashboard";
 import Success from "./pages/Success";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
+import Diary from "./pages/Diary";
+import DiaryDetail from "./pages/DiaryDetail";
 
 function AppRoutes() {
   const location = useLocation();
   return (
     <>
-      {location.pathname !== "/dashboard" && <Navbar />}
+      {!location.pathname.startsWith("/dashboard") && <Navbar />}
 
       <Routes>
         <Route path="/" element={<Home />} />
@@ -25,11 +27,31 @@ function AppRoutes() {
         />
 
         <Route path="/success" element={<Success />} />
+        <Route
+          path="/diary"
+          element={
+            <ProtectedRoute>
+              <Diary />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/:type/:id"
+          element={
+            <ProtectedRoute>
+              <DiaryDetail />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </>
   );
 }
 
 export default function App() {
-  return <BrowserRouter><AppRoutes /></BrowserRouter>;
+  return (
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
+  );
 }

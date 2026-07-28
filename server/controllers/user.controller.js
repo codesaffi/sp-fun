@@ -3,7 +3,7 @@ import User from "../models/User.js";
 export const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select(
-      "-accessToken -refreshToken" // exclude tokens for security
+      "-accessToken -refreshToken", // exclude tokens for security
     );
 
     if (!user) return res.status(404).json({ message: "User not found" });
@@ -17,10 +17,10 @@ export const getMe = async (req, res) => {
 export const getAllUsers = async (req, res) => {
   try {
     const currentUserId = req.user.id;
-    
+
     // Get all users except the current user, exclude tokens for security
     const users = await User.find({ _id: { $ne: currentUserId } }).select(
-      "-accessToken -refreshToken"
+      "-accessToken -refreshToken",
     );
 
     res.json(users);
@@ -35,7 +35,7 @@ export const getUserById = async (req, res) => {
     const { userId } = req.params;
 
     const user = await User.findById(userId).select(
-      "-accessToken -refreshToken" // exclude tokens for security
+      "-accessToken -refreshToken", // exclude tokens for security
     );
 
     if (!user) return res.status(404).json({ message: "User not found" });
