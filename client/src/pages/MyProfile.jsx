@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import PostCard from "../components/PostCard";
 import DiaryEntryCard from "../components/DiaryEntryCard";
+import JoinedCommunities from "../components/JoinedCommunities";
 import React from "react";
 
 const API = `${import.meta.env.VITE_API_URL}/api`;
@@ -10,6 +11,7 @@ const tabs = [
   "Overview",
   "Posts",
   "Music Diary",
+  "Communities",
   "Stats",
   "Recently Played",
   "Top Artists",
@@ -44,6 +46,7 @@ export default function MyProfile() {
   const [insights, setInsights] = useState(null);
   const [posts, setPosts] = useState([]);
   const [diary, setDiary] = useState([]);
+  const [communities, setCommunities] = useState([]);
   const [matches, setMatches] = useState([]);
   const [tab, setTab] = useState("Overview");
   const [loading, setLoading] = useState(true);
@@ -56,12 +59,13 @@ export default function MyProfile() {
   const load = async () => {
     setLoading(true);
     try {
-      const [me, data, feed, board, diaryResponse] = await Promise.all([
+      const [me, data, feed, board, diaryResponse, communitiesResponse] = await Promise.all([
         fetch(`${API}/user/me`, { headers }),
         fetch(`${API}/social/insights?refresh=true`, { headers }),
         fetch(`${API}/posts`, { headers }),
         fetch(`${API}/social/leaderboard`, { headers }),
         fetch(`${API}/diary/me`, { headers }),
+        fetch(`${API}/communities/mine`, { headers }),
       ]);
       const meJson = me.ok ? await me.json() : null;
       setUser(meJson);
@@ -70,6 +74,7 @@ export default function MyProfile() {
       const postData = feed.ok ? await feed.json() : [];
       setPosts(postData.filter((post) => post.user?._id === meJson?._id));
       setDiary(diaryResponse.ok ? await diaryResponse.json() : []);
+      setCommunities(communitiesResponse.ok ? await communitiesResponse.json() : []);
       setMatches(board.ok ? await board.json() : []);
     } finally {
       setLoading(false);
@@ -306,6 +311,7 @@ export default function MyProfile() {
               }
             />
           )}
+          {tab === "Communities" && <JoinedCommunities communities={communities} />}
           {tab === "Recently Played" && (
             <Timeline items={recent} fallback={topTracks} />
           )}{" "}

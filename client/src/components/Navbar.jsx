@@ -50,6 +50,7 @@ export default function Navbar() {
                 >
                   Music Diary
                 </NavLink>
+                <NavLink to="/communities" className={({ isActive }) => isActive ? "nav-link active" : "nav-link"}>Communities</NavLink>
                 <button onClick={handleLogout} className="nav-link danger">
                   Logout
                 </button>
@@ -109,6 +110,7 @@ export default function Navbar() {
             >
               Music Diary
             </NavLink>
+            <NavLink to="/communities" className={({ isActive }) => isActive ? "mobile-nav-link active" : "mobile-nav-link"} onClick={closeMenu}>Communities</NavLink>
             <button onClick={handleLogout} className="mobile-nav-link danger">
               Logout
             </button>

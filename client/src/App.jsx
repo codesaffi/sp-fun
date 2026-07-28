@@ -7,6 +7,7 @@ import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Diary from "./pages/Diary";
 import DiaryDetail from "./pages/DiaryDetail";
+import Communities from "./pages/Communities";
 
 function AppRoutes() {
   const location = useLocation();
@@ -43,6 +44,8 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route path="/communities" element={<ProtectedRoute><Communities /></ProtectedRoute>} />
+        <Route path="/communities/:slug" element={<ProtectedRoute><Communities /></ProtectedRoute>} />
       </Routes>
     </>
   );

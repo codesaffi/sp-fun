@@ -16,6 +16,7 @@ const postSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    community: { type: mongoose.Schema.Types.ObjectId, ref: "Community", index: true },
     caption: { type: String, required: true, trim: true, maxlength: 1000 },
     type: {
       type: String,
@@ -32,6 +33,7 @@ const postSchema = new mongoose.Schema(
     },
     artist: mongoose.Schema.Types.Mixed,
     song: mongoose.Schema.Types.Mixed,
+    album: mongoose.Schema.Types.Mixed,
     genres: [String],
     musicProfile: String,
     mood: String,

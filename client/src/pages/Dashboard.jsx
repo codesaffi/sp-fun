@@ -176,6 +176,8 @@ export default function Dashboard() {
                   doLogout();
                 } else if (item.id === "diary") {
                   navigate("/diary");
+                } else if (item.id === "community") {
+                  navigate("/communities");
                 } else {
                   setView(item.id);
                 }

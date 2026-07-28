@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 const API = `${import.meta.env.VITE_API_URL}/api`;
 const initials = (name = "Listener") =>
@@ -22,6 +23,7 @@ export default function PostCard({
   currentUserId,
   onChange,
   manage = false,
+  canModerate = false,
 }) {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [comment, setComment] = useState("");
@@ -108,6 +110,14 @@ export default function PostCard({
         <Avatar user={post.user} />
         <div>
           <b>{post.user?.name || "Listener"}</b>
+          {post.community && (
+            <small>
+              posted in{" "}
+              <Link to={`/communities/${post.community.slug}`}>
+                {post.community.name}
+              </Link>
+            </small>
+          )}
           <small>{new Date(post.createdAt).toLocaleDateString()}</small>
         </div>
       </div>
@@ -137,6 +147,8 @@ export default function PostCard({
       )}
       <div className="post-meta">
         {post.artist?.name && <span>{post.artist.name}</span>}
+        {post.song?.name && <span>{post.song.name}</span>}
+        {post.album?.name && <span>{post.album.name}</span>}
         {post.mood && <span>{post.mood}</span>}
       </div>
       <div className="post-actions">
@@ -146,7 +158,7 @@ export default function PostCard({
         <button onClick={() => setCommentsOpen((open) => !open)}>
           ◌ Comment {post.comments?.length || 0}
         </button>
-        {manage && isOwner && (
+        {manage && (isOwner || canModerate) && (
           <>
             <button onClick={() => setEditing(true)}>Edit</button>
             <button onClick={remove}>Delete</button>

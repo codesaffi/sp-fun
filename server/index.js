@@ -8,6 +8,7 @@ import advancedRoutes from "./routes/advancedTest.routes.js";
 import socialRoutes from "./routes/social.routes.js";
 import postRoutes from "./routes/post.routes.js";
 import diaryRoutes from "./routes/diary.routes.js";
+import communityRoutes from "./routes/community.routes.js";
 import { securityMiddleware } from "./middleware/security.middleware.js";
 import {
   notFoundHandler,
@@ -27,6 +28,7 @@ app.use("/api/advanced", advancedRoutes);
 app.use("/api/social", socialRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api/diary", diaryRoutes);
+app.use("/api/communities", communityRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
