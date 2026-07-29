@@ -17,7 +17,8 @@ import {
 const populateDiary = (query) =>
   query
     .populate("user", "name avatar")
-    .populate("comments.user", "name avatar");
+    .populate("comments.user", "name avatar")
+    .lean();
 const typeMap = { song: "track", album: "album", artist: "artist" };
 // Spotify reduced the Search endpoint maximum from 50 to 10 in February 2026.
 const SPOTIFY_SEARCH_LIMIT = 10;

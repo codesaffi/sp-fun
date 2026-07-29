@@ -26,4 +26,5 @@ const communitySchema = new mongoose.Schema(
 );
 
 communitySchema.index({ name: "text", description: "text", tags: "text", genre: "text" });
+communitySchema.index({ official: -1, createdAt: -1 });
 export default mongoose.model("Community", communitySchema);

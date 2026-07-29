@@ -1,5 +1,6 @@
 ﻿import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { PageSkeleton } from "../components/Loading";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -50,8 +51,7 @@ export default function AdvancedTest() {
     fetchData();
   }, [token]);
 
-  if (loading)
-    return <div className="py-10 text-center text-[#c7bcc9]">Loading...</div>;
+  if (loading) return <PageSkeleton />;
   if (error)
     return <div className="py-10 text-center text-[#ff8c8c]">{error}</div>;
   if (!data)

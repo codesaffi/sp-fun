@@ -21,7 +21,27 @@ const serialize = async (community, userId) => {
     memberCount(community),
     userId ? CommunityMember.findOne({ community: community._id, user: userId }).lean() : null,
   ]);
-  return { ...community.toObject(), memberCount: members, membership: membership || null };
+  return { ...(community.toObject ? community.toObject() : community), memberCount: members, membership: membership || null };
+};
+
+const serializeMany = async (communities, userId) => {
+  const ids = communities.map((community) => community._id);
+  const [counts, memberships] = await Promise.all([
+    CommunityMember.aggregate([
+      { $match: { community: { $in: ids } } },
+      { $group: { _id: "$community", count: { $sum: 1 } } },
+    ]),
+    userId
+      ? CommunityMember.find({ community: { $in: ids }, user: userId }).lean()
+      : [],
+  ]);
+  const countMap = new Map(counts.map((item) => [String(item._id), item.count]));
+  const membershipMap = new Map(memberships.map((item) => [String(item.community), item]));
+  return communities.map((community) => ({
+    ...(community.toObject ? community.toObject() : community),
+    memberCount: countMap.get(String(community._id)) || 0,
+    membership: membershipMap.get(String(community._id)) || null,
+  }));
 };
 
 const requireCommunity = async (slug) => {
@@ -40,8 +60,8 @@ export const listCommunities = async (req, res) => {
   await ensureOfficialCommunities(req.user.id);
   const q = req.query.q ? cleanSearch(req.query.q, "Community search") : "";
   const filter = q ? { $text: { $search: q } } : {};
-  const communities = await Community.find(filter).sort({ official: -1, createdAt: -1 }).limit(100);
-  const values = await Promise.all(communities.map((community) => serialize(community, req.user.id)));
+  const communities = await Community.find(filter).sort({ official: -1, createdAt: -1 }).limit(100).lean();
+  const values = await serializeMany(communities, req.user.id);
   const byActivity = [...values].sort((a, b) => b.memberCount - a.memberCount);
   const user = await User.findById(req.user.id).select("analysis stats").lean();
   const tastes = [
@@ -64,8 +84,8 @@ export const listCommunities = async (req, res) => {
 };
 
 export const listMyCommunities = async (req, res) => {
-  const memberships = await CommunityMember.find({ user: req.user.id }).populate("community");
-  const values = await Promise.all(memberships.filter((item) => item.community).map((item) => serialize(item.community, req.user.id)));
+  const memberships = await CommunityMember.find({ user: req.user.id }).populate("community").lean();
+  const values = await serializeMany(memberships.filter((item) => item.community).map((item) => item.community), req.user.id);
   res.json(values);
 };
 
@@ -170,7 +190,8 @@ export const listCommunityPosts = async (req, res) => {
   if (community.privacy === "private" && !membership) throw new AppError("This is a private community.", 403);
   const posts = await Post.find({ community: community._id }).sort({ createdAt: -1 }).limit(50)
     .populate("user", "name avatar").populate("community", "name slug icon")
-    .populate("comments.user", "name avatar");
+    .populate("comments.user", "name avatar")
+    .lean();
   res.json(posts);
 };
 
@@ -178,5 +199,5 @@ export const listCommunityMembers = async (req, res) => {
   const community = await requireCommunity(req.params.slug);
   const membership = await CommunityMember.findOne({ community: community._id, user: req.user.id });
   if (community.privacy === "private" && !membership) throw new AppError("This is a private community.", 403);
-  res.json(await CommunityMember.find({ community: community._id }).sort({ role: 1, createdAt: 1 }).limit(200).populate("user", "name avatar"));
+  res.json(await CommunityMember.find({ community: community._id }).sort({ role: 1, createdAt: 1 }).limit(200).populate("user", "name avatar").lean());
 };

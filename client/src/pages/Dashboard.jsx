@@ -1,13 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import MyProfile from "./MyProfile";
-import OtherUsers from "./OtherUsers";
-import MyMusicTaste from "./MyMusicTaste";
-import RecentlyPlayed from "./RecentlyPlayed";
-import AdvancedTest from "./AdvancedTest";
 import PostCard from "../components/PostCard";
 import React from "react";
+import { PageSkeleton, PostSkeleton, SearchSkeleton, ButtonLoader } from "../components/Loading";
+import { useDebounce } from "../hooks/useDebounce";
 import {
   FiHome,
   FiSearch,
@@ -17,9 +14,16 @@ import {
   FiBookOpen,
   FiBell,
   FiLogOut,
+  FiTrendingUp,
+  FiZap,
 } from "react-icons/fi";
-
 import { MdDynamicFeed } from "react-icons/md";
+
+const MyProfile = lazy(() => import("./MyProfile"));
+const OtherUsers = lazy(() => import("./OtherUsers"));
+const MyMusicTaste = lazy(() => import("./MyMusicTaste"));
+const RecentlyPlayed = lazy(() => import("./RecentlyPlayed"));
+const AdvancedTest = lazy(() => import("./AdvancedTest"));
 
 const API_URL = import.meta.env.VITE_API_URL;
 const api = `${API_URL}/api/social`;
@@ -29,6 +33,7 @@ const initials = (name = "You") =>
     .map((part) => part[0])
     .join("")
     .slice(0, 2);
+
 const Avatar = ({ user, size = "md" }) =>
   user?.avatar ? (
     <img className={`avatar ${size}`} src={user.avatar} alt="" />
@@ -46,10 +51,16 @@ export default function Dashboard() {
   const [shared, setShared] = useState(false);
   const [compare, setCompare] = useState(null);
   const [posts, setPosts] = useState([]);
+  const [feedLoading, setFeedLoading] = useState(true);
   const [postModal, setPostModal] = useState(false);
   const [postType, setPostType] = useState("top_artist");
   const [caption, setCaption] = useState("");
   const [postError, setPostError] = useState("");
+  const [publishing, setPublishing] = useState(false);
+  const [compareLoading, setCompareLoading] = useState("");
+
+  const debouncedQuery = useDebounce(query.trim(), 350);
+
   const headers = useMemo(
     () => ({ Authorization: `Bearer ${token}` }),
     [token],
@@ -69,29 +80,48 @@ export default function Dashboard() {
       })
       .catch(() => {});
   }, [token, headers]);
-  const loadPosts = async () => {
+
+  const loadPosts = useCallback(async () => {
+    setFeedLoading(true);
     try {
       const r = await fetch(`${API_URL}/api/posts`, { headers });
       if (r.ok) setPosts(await r.json());
     } catch {
-      // Keep the dashboard usable if the feed request fails.
+      // Keep dashboard usable on network error
+    } finally {
+      setFeedLoading(false);
     }
-  };
+  }, [headers]);
+
   useEffect(() => {
     if (token) loadPosts();
-  }, [token]);
+  }, [token, loadPosts]);
 
-  const explore = async (value = query) => {
+  const explore = useCallback(async (value = query) => {
     const response = await fetch(
       `${api}/discover?q=${encodeURIComponent(value)}`,
       { headers },
     );
     if (response.ok) setPeople(await response.json());
-  };
+  }, [headers, query]);
+
+  useEffect(() => {
+    if (view === "discover" && token) {
+      explore(debouncedQuery);
+    }
+  }, [debouncedQuery, view, token, explore]);
+
   const showCompare = async (person) => {
-    const response = await fetch(`${api}/compare/${person._id}`, { headers });
-    if (response.ok) setCompare(await response.json());
+    if (compareLoading) return;
+    setCompareLoading(person._id);
+    try {
+      const response = await fetch(`${api}/compare/${person._id}`, { headers });
+      if (response.ok) setCompare(await response.json());
+    } finally {
+      setCompareLoading("");
+    }
   };
+
   const nav = [
     { id: "home", label: "Home", icon: <FiHome /> },
     { id: "feed", label: "Feed", icon: <MdDynamicFeed /> },
@@ -103,17 +133,20 @@ export default function Dashboard() {
     { id: "community", label: "Community", icon: <FiGrid /> },
     { id: "logout", label: "Logout", icon: <FiLogOut /> },
   ];
+
   const user = insights?.user;
   const genres = insights?.topGenres?.length
     ? insights.topGenres
     : ["indie pop", "dream pop", "alternative", "bedroom pop"];
   const personality = insights?.personality || "Sound Explorer";
   const mood = insights?.mood || "Curious";
+
   const openComposer = () => {
     setPostError("");
     setCaption("");
     setPostModal(true);
   };
+
   const postTemplates = {
     top_artist: `🎵 My Top Artist is ${insights?.favoriteArtist?.name || "my current favorite"}.`,
     top_song: `🎶 My current favorite song is ${insights?.favoriteTrack?.name || "on repeat"}.`,
@@ -123,9 +156,12 @@ export default function Dashboard() {
     recent: "This song has been living in my head lately.",
     custom: "",
   };
+
   const publish = async () => {
+    if (publishing) return;
     const text = caption.trim() || postTemplates[postType];
     if (!text) return setPostError("Write a caption before sharing.");
+    setPublishing(true);
     const body = {
       caption: text,
       type: postType,
@@ -149,16 +185,20 @@ export default function Dashboard() {
       setView("feed");
     } catch {
       setPostError("Connection failed. Please try again.");
+    } finally {
+      setPublishing(false);
     }
   };
-  const updatePost = (updated) =>
+
+  const updatePost = useCallback((updated) =>
     setPosts((current) =>
       updated?.deleted
         ? current.filter((post) => post._id !== updated._id)
         : updated
           ? current.map((post) => (post._id === updated._id ? updated : post))
           : current,
-    );
+    ), []);
+
   const doLogout = () => {
     logout();
     navigate("/", { replace: true });
@@ -167,7 +207,7 @@ export default function Dashboard() {
   return (
     <div className="app-shell">
       <aside className="side-nav">
-        <div className="brand">
+        <div className="brand cursor-pointer" onClick={() => setView("home")}>
           <span className="brand-mark">m</span> melody
         </div>
         <div className="nav-group">
@@ -189,8 +229,8 @@ export default function Dashboard() {
               }}
               className={
                 view === item.id && item.id !== "logout"
-                  ? "nav-item active"
-                  : "nav-item"
+                  ? "nav-item active cursor-pointer"
+                  : "nav-item cursor-pointer"
               }
             >
               <span>{item.icon}</span>
@@ -198,17 +238,6 @@ export default function Dashboard() {
             </button>
           ))}
         </div>
-        {/* <div className="side-bottom">
-          <button className="nav-item" onClick={doLogout}>
-            <FiLogOut />
-            <span>Logout</span>
-          </button>{" "}
-          <div className="profile-chip">
-            <Avatar user={user} size="sm" />
-            <span>{user?.name || "Your profile"}</span>
-            <b>⌄</b>
-          </div>
-        </div> */}
       </aside>
       <main className="dashboard-main">
         {view === "home" && (
@@ -244,12 +273,12 @@ export default function Dashboard() {
                 <div className="orb orb-one" />
                 <div className="orb orb-two" />
                 <div className="orb orb-three" />
-                <span>♫</span>
+                <FiMusic className="text-4xl text-[#d8fa61]" />
               </div>
             </section>
             <section className="stat-grid">
               <article>
-                <span className="stat-icon pink">◌</span>
+                <span className="stat-icon pink"><FiMusic /></span>
                 <div>
                   <p>YOUR CURRENT MOOD</p>
                   <h3>{mood}</h3>
@@ -257,7 +286,7 @@ export default function Dashboard() {
                 </div>
               </article>
               <article>
-                <span className="stat-icon lime">↗</span>
+                <span className="stat-icon lime"><FiTrendingUp /></span>
                 <div>
                   <p>LISTENING STREAK</p>
                   <h3>{insights?.listeningDiversity || 24} artists</h3>
@@ -265,7 +294,7 @@ export default function Dashboard() {
                 </div>
               </article>
               <article>
-                <span className="stat-icon lavender">✦</span>
+                <span className="stat-icon lavender"><FiZap /></span>
                 <div>
                   <p>TOP MATCH</p>
                   <h3>{people[0]?.compatibility?.score ?? 86}% compatible</h3>
@@ -312,7 +341,7 @@ export default function Dashboard() {
               </div>
               <button
                 onClick={() => setView("matches")}
-                className="text-button"
+                className="text-button cursor-pointer"
               >
                 See all matches →
               </button>
@@ -328,7 +357,7 @@ export default function Dashboard() {
                     },
                   ]
               ).map((person, i) => (
-                <article className="match-card" key={person._id || i}>
+                <article className="match-card cursor-pointer" key={person._id || i}>
                   <div className="match-top">
                     <Avatar user={person} />
                     <span className="score">
@@ -343,10 +372,11 @@ export default function Dashboard() {
                     />
                   </div>
                   <button
-                    disabled={!person._id}
+                    disabled={!person._id || compareLoading === person._id}
                     onClick={() => showCompare(person)}
+                    className="cursor-pointer"
                   >
-                    View compatibility
+                    {compareLoading === person._id ? <ButtonLoader label="Loading" /> : "View compatibility"}
                   </button>
                 </article>
               ))}
@@ -369,6 +399,7 @@ export default function Dashboard() {
                   setShared(true);
                   openComposer();
                 }}
+                className="cursor-pointer"
               >
                 {shared ? "Share again" : "Share to feed"}
               </button>
@@ -380,55 +411,29 @@ export default function Dashboard() {
             <header className="dash-header compact">
               <p className="eyebrow">MUSIC FROM YOUR PEOPLE</p>
               <h1>The feed</h1>
-              <button className="feed-share" onClick={openComposer}>
+              <button className="feed-share cursor-pointer" onClick={openComposer}>
                 + Share a moment
               </button>
             </header>
             <div className="feed-list">
-              {posts.length ? (
+              {feedLoading ? (
+                <PostSkeleton count={4} />
+              ) : posts.length ? (
                 posts.map((post) => (
-                  <>
-                    <PostCard
-                      key={post._id}
-                      post={post}
-                      token={token}
-                      currentUserId={user?._id}
-                      onChange={updatePost}
-                    />
-                    {/* <article key={post._id} className="feed-post">
-                    <div className="post-byline">
-                      <Avatar user={post.user} size="sm" />
-                      <div>
-                        <b>{post.user?.name || "Listener"}</b>
-                        <small>
-                          {new Date(post.createdAt).toLocaleDateString()}
-                        </small>
-                      </div>
-                    </div>
-                    <div className="post-art">
-                      <span>♫</span>
-                      <p>{post.type?.replace("_", " ")}</p>
-                    </div>
-                    <h2>{post.caption}</h2>
-                    <div className="post-meta">
-                      {post.artist?.name && <span>{post.artist.name}</span>}
-                      {post.mood && <span>{post.mood}</span>}
-                    </div>
-                    <div className="post-actions">
-                      <button onClick={() => toggleLike(post._id)}>
-                        ♡ {post.likes?.length || 0}
-                      </button>
-                      <button>◌ {post.comments?.length || 0} comments</button>
-                    </div>
-                  </article>*/}
-                  </>
+                  <PostCard
+                    key={post._id}
+                    post={post}
+                    token={token}
+                    currentUserId={user?._id}
+                    onChange={updatePost}
+                  />
                 ))
               ) : (
                 <div className="empty-state">
-                  <span>♫</span>
+                  <FiMusic className="text-4xl text-white/20 mb-2 inline-block" />
                   <h2>No posts yet.</h2>
                   <p>Share your music taste and start the conversation.</p>
-                  <button onClick={openComposer}>Create your first post</button>
+                  <button onClick={openComposer} className="cursor-pointer">Create your first post</button>
                 </div>
               )}
             </div>
@@ -443,18 +448,18 @@ export default function Dashboard() {
               </div>
             </header>
             <div className="search">
-              <span>⌕</span>
+              <FiSearch className="text-white/40 text-lg ml-3" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && explore()}
                 placeholder="Try “Clairo”, “indie”, or “80% compatible”"
               />
-              <button onClick={() => explore()}>Search</button>
+              <button onClick={() => explore()} className="cursor-pointer">Search</button>
             </div>
             <div className="people-list">
               {people.map((person) => (
-                <article key={person._id} className="person-row">
+                <article key={person._id} className="person-row cursor-pointer">
                   <Avatar user={person} />
                   <div>
                     <h3>{person.name}</h3>
@@ -463,7 +468,9 @@ export default function Dashboard() {
                     </p>
                   </div>
                   <b>{person.compatibility.score}%</b>
-                  <button onClick={() => showCompare(person)}>Compare</button>
+                  <button onClick={() => showCompare(person)} disabled={compareLoading === person._id} className="cursor-pointer">
+                    {compareLoading === person._id ? <ButtonLoader label="Loading" /> : "Compare"}
+                  </button>
                 </article>
               ))}
             </div>
@@ -480,7 +487,7 @@ export default function Dashboard() {
             </header>
             <div className="people-list">
               {people.map((person, index) => (
-                <article key={person._id} className="person-row">
+                <article key={person._id} className="person-row cursor-pointer">
                   <em>0{index + 1}</em>
                   <Avatar user={person} />
                   <div>
@@ -492,8 +499,8 @@ export default function Dashboard() {
                     </p>
                   </div>
                   <b>{person.compatibility.score}%</b>
-                  <button onClick={() => showCompare(person)}>
-                    View match
+                  <button onClick={() => showCompare(person)} disabled={compareLoading === person._id} className="cursor-pointer">
+                    {compareLoading === person._id ? <ButtonLoader label="Loading" /> : "View match"}
                   </button>
                 </article>
               ))}
@@ -511,11 +518,11 @@ export default function Dashboard() {
                 "Alternative archives",
                 "Pop after dark",
               ].map((community, i) => (
-                <article key={community}>
+                <article key={community} className="community-card cursor-pointer">
                   <span>{["☾", "◒", "✳", "♬"][i]}</span>
                   <h2>{community}</h2>
                   <p>{["2.4k", "8.1k", "1.7k", "5.2k"][i]} listeners</p>
-                  <button>Join community</button>
+                  <button onClick={() => navigate("/communities")} className="cursor-pointer">Explore communities</button>
                 </article>
               ))}
             </div>
@@ -524,20 +531,22 @@ export default function Dashboard() {
         {view === "library" && (
           <section className="legacy">
             <div className="legacy-tabs">
-              <button onClick={() => setView("profile")}>Profile</button>
-              <button onClick={() => setView("users")}>People</button>
-              <button onClick={() => setView("taste")}>Music taste</button>
-              <button onClick={() => setView("recent")}>Recently played</button>
-              <button onClick={() => setView("test")}>Spotify tools</button>
+              <button onClick={() => setView("profile")} className="cursor-pointer">Profile</button>
+              <button onClick={() => setView("users")} className="cursor-pointer">People</button>
+              <button onClick={() => setView("taste")} className="cursor-pointer">Music taste</button>
+              <button onClick={() => setView("recent")} className="cursor-pointer">Recently played</button>
+              <button onClick={() => setView("test")} className="cursor-pointer">Spotify tools</button>
             </div>
             <p>Select a section above to access your existing Spotify data.</p>
           </section>
         )}
-        {view === "profile" && <MyProfile />}
-        {view === "users" && <OtherUsers />}
-        {view === "taste" && <MyMusicTaste />}
-        {view === "recent" && <RecentlyPlayed />}
-        {view === "test" && <AdvancedTest />}
+        <Suspense fallback={<PageSkeleton />}>
+          {view === "profile" && <MyProfile />}
+          {view === "users" && <OtherUsers />}
+          {view === "taste" && <MyMusicTaste />}
+          {view === "recent" && <RecentlyPlayed />}
+          {view === "test" && <AdvancedTest />}
+        </Suspense>
       </main>
       {compare && (
         <div className="modal-backdrop" onClick={() => setCompare(null)}>
@@ -545,7 +554,7 @@ export default function Dashboard() {
             className="compare-modal"
             onClick={(e) => e.stopPropagation()}
           >
-            <button className="close" onClick={() => setCompare(null)}>
+            <button className="close cursor-pointer" onClick={() => setCompare(null)}>
               ×
             </button>
             <Avatar user={compare.user} />
@@ -583,7 +592,7 @@ export default function Dashboard() {
       {postModal && (
         <div className="modal-backdrop" onClick={() => setPostModal(false)}>
           <article className="composer" onClick={(e) => e.stopPropagation()}>
-            <button className="close" onClick={() => setPostModal(false)}>
+            <button className="close cursor-pointer" onClick={() => setPostModal(false)}>
               ×
             </button>
             <p className="eyebrow">SHARE YOUR SOUND</p>
@@ -599,7 +608,7 @@ export default function Dashboard() {
                 custom: "Custom",
               }).map(([id, label]) => (
                 <button
-                  className={postType === id ? "selected" : ""}
+                  className={postType === id ? "selected cursor-pointer" : "cursor-pointer"}
                   onClick={() => setPostType(id)}
                   key={id}
                 >
@@ -611,15 +620,16 @@ export default function Dashboard() {
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
               placeholder={postTemplates[postType]}
+              disabled={publishing}
             />
             <div className="card-preview">
-              <span>♫</span>
+              <FiMusic className="text-[#d8fa61] inline-block mr-2" />
               <p>{caption || postTemplates[postType]}</p>
               <small>{user?.name || "You"} · VibeMatch</small>
             </div>
             {postError && <p className="form-error">{postError}</p>}
-            <button className="publish" onClick={publish}>
-              Share to feed
+            <button className="publish cursor-pointer" onClick={publish} disabled={publishing}>
+              {publishing ? <ButtonLoader label="Sharing" /> : "Share to feed"}
             </button>
           </article>
         </div>

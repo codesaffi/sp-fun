@@ -10,4 +10,6 @@ const communityMemberSchema = new mongoose.Schema(
 );
 
 communityMemberSchema.index({ community: 1, user: 1 }, { unique: true });
+communityMemberSchema.index({ community: 1, role: 1, createdAt: 1 });
+communityMemberSchema.index({ user: 1, createdAt: -1 });
 export default mongoose.model("CommunityMember", communityMemberSchema);

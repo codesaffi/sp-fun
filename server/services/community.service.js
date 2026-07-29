@@ -11,13 +11,21 @@ const officialCommunities = [
 
 const slugify = (value) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
+let isOfficialSeeded = false;
+
 export const ensureOfficialCommunities = async (ownerId) => {
-  if (!ownerId) return;
+  if (!ownerId || isOfficialSeeded) return;
+  const count = await Community.countDocuments({ official: true });
+  if (count >= officialCommunities.length) {
+    isOfficialSeeded = true;
+    return;
+  }
   await Promise.all(officialCommunities.map(([name, genre]) => Community.updateOne(
     { slug: slugify(name) },
     { $setOnInsert: { name, slug: slugify(name), genre, tags: [name, genre], description: `A place for listeners who love ${name}.`, official: true, createdBy: ownerId, icon: "♫" } },
     { upsert: true },
   )));
+  isOfficialSeeded = true;
 };
 
 export { slugify };

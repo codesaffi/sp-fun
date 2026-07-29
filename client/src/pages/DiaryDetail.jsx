@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { PageSkeleton } from "../components/Loading";
 const API = `${import.meta.env.VITE_API_URL}/api`;
 const status = {
   favorite: "❤️ Favorite",
@@ -21,15 +22,24 @@ export default function DiaryDetail() {
     entryDate: new Date().toISOString().slice(0, 10),
   });
   const [message, setMessage] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [sharing, setSharing] = useState(false);
   useEffect(() => {
+    const controller = new AbortController();
     fetch(`${API}/diary/details/${type}/${id}`, {
       headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal,
     })
       .then((res) => res.ok && res.json())
       .then(setItem)
-      .catch(() => setItem(null));
+      .catch((error) => {
+        if (error.name !== "AbortError") setItem(null);
+      });
+    return () => controller.abort();
   }, [id, token, type]);
   const save = async () => {
+    if (saving || !item) return;
+    setSaving(true);
     const res = await fetch(`${API}/diary`, {
       method: "POST",
       headers: {
@@ -43,8 +53,11 @@ export default function DiaryDetail() {
       setMessage("Saved to your Music Diary.");
     } else
       setMessage((await res.json()).message || "Could not save this entry.");
+    setSaving(false);
   };
   const share = async () => {
+    if (sharing || !item) return;
+    setSharing(true);
     const res = await fetch(`${API}/posts`, {
       method: "POST",
       headers: {
@@ -60,13 +73,9 @@ export default function DiaryDetail() {
       }),
     });
     if (res.ok) navigate("/dashboard");
+    setSharing(false);
   };
-  if (!item)
-    return (
-      <main className="dashboard-main">
-        <p className="subtle">Loading music details...</p>
-      </main>
-    );
+  if (!item) return <PageSkeleton />;
   return (
     <main className="dashboard-main diary-page">
       <button className="text-button" onClick={() => navigate(-1)}>
@@ -140,8 +149,12 @@ export default function DiaryDetail() {
               onChange={(e) => setForm({ ...form, entryDate: e.target.value })}
             />
           </label>
-          <button onClick={save}>Save Review</button>
-          <button onClick={share}>Share as Post</button>
+          <button onClick={save} disabled={saving}>
+            {saving ? "Saving..." : "Save Review"}
+          </button>
+          <button onClick={share} disabled={sharing}>
+            {sharing ? "Sharing..." : "Share as Post"}
+          </button>
           {message && <p className="subtle">{message}</p>}
         </div>
       </section>

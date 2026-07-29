@@ -5,7 +5,7 @@ export const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select(
       "-accessToken -refreshToken", // exclude tokens for security
-    );
+    ).lean();
 
     if (!user) throw new AppError("User not found", 404);
 
@@ -23,7 +23,7 @@ export const getAllUsers = async (req, res) => {
     // Get all users except the current user, exclude tokens for security
     const users = await User.find({ _id: { $ne: currentUserId } }).select(
       "-accessToken -refreshToken",
-    );
+    ).lean();
 
     res.json(users);
   } catch (error) {
@@ -38,7 +38,7 @@ export const getUserById = async (req, res) => {
 
     const user = await User.findById(userId).select(
       "-accessToken -refreshToken", // exclude tokens for security
-    );
+    ).lean();
 
     if (!user) throw new AppError("User not found", 404);
 

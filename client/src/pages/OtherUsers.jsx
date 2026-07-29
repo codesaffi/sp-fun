@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import React from "react";
 import UserProfile from "./UserProfile";
+import { GridSkeleton } from "../components/Loading";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -39,10 +40,7 @@ export default function OtherUsers() {
     fetchUsers();
   }, [token]);
 
-  if (loading)
-    return (
-      <div className="py-10 text-center text-[#c7bcc9]">Loading users...</div>
-    );
+  if (loading) return <GridSkeleton />;
   if (error)
     return (
       <div className="py-10 text-center text-[#ff8c8c]">Error: {error}</div>
@@ -88,6 +86,8 @@ export default function OtherUsers() {
                   <img
                     src={user.avatar}
                     alt={user.name}
+                    loading="lazy"
+                    decoding="async"
                     className="h-14 w-14 rounded-full object-cover"
                   />
                 ) : (

@@ -1,5 +1,6 @@
 ﻿import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { ListSkeleton } from "../components/Loading";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -52,9 +53,7 @@ export default function RecentlyPlayed() {
     fetchTracks();
   }, [token]);
 
-  if (loading) {
-    return <div className="py-10 text-center text-[#c7bcc9]">Loading...</div>;
-  }
+  if (loading) return <ListSkeleton />;
 
   if (error) {
     return <div className="py-10 text-center text-[#ff8c8c]">{error}</div>;
@@ -82,6 +81,8 @@ export default function RecentlyPlayed() {
               <img
                 src={track.image || "https://via.placeholder.com/64"}
                 alt={track.name || "Recently played track"}
+                loading="lazy"
+                decoding="async"
                 className="h-16 w-16 rounded-xl object-cover"
               />
               <div className="min-w-0 flex-1">

@@ -66,7 +66,7 @@ export const discover = async (req, res) => {
   if (!me) throw new AppError("User not found", 404);
   const users = await User.find({ _id: { $ne: req.user.id } }).select(
     "-accessToken -refreshToken",
-  );
+  ).lean();
   const query = cleanOptionalString(req.query.q, "Search query", 100)?.toLowerCase() || "";
   const results = users
     .map((user) => ({
@@ -82,7 +82,7 @@ export const discover = async (req, res) => {
 
 export const genres = async (req, res) => {
   try {
-    const users = await User.find().select("stats analysis");
+    const users = await User.find().select("stats analysis").lean();
     const counts = new Map();
     users.forEach((user) => {
       const found = [
@@ -121,7 +121,7 @@ export const updateProfile = async (req, res) => {
     const user = await User.findByIdAndUpdate(req.user.id, changes, {
       new: true,
       runValidators: true,
-    }).select("-accessToken -refreshToken");
+    }).select("-accessToken -refreshToken").lean();
     res.json(publicUser(user));
   } catch (error) {
     if (error instanceof AppError) throw error;
@@ -134,7 +134,7 @@ export const leaderboard = async (req, res) => {
   if (!me) throw new AppError("User not found", 404);
   const users = await User.find({ _id: { $ne: req.user.id } }).select(
     "-accessToken -refreshToken",
-  );
+  ).lean();
   const ranked = users
       .map((user) => ({
         ...publicUser(user),
@@ -154,8 +154,8 @@ export const leaderboard = async (req, res) => {
 
 export const compare = async (req, res) => {
   const [me, user] = await Promise.all([
-    User.findById(req.user.id),
-    User.findById(req.params.userId),
+    User.findById(req.user.id).lean(),
+    User.findById(req.params.userId).lean(),
   ]);
   if (!me) throw new AppError("User not found", 404);
   if (!user) throw new AppError("User not found", 404);

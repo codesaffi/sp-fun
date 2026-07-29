@@ -16,7 +16,8 @@ const populatePost = (query) =>
   query
     .populate("user", "name avatar")
     .populate("community", "name slug icon")
-    .populate("comments.user", "name avatar");
+    .populate("comments.user", "name avatar")
+    .lean();
 
 export const listPosts = async (req, res) => {
   try {
@@ -86,7 +87,7 @@ export const createPost = async (req, res) => {
       community: community?._id,
     });
     if (community) {
-      const members = await CommunityMember.find({ community: community._id, user: { $ne: req.user.id } }).select("user");
+      const members = await CommunityMember.find({ community: community._id, user: { $ne: req.user.id } }).select("user").lean();
       await Promise.all(members.map((member) => createNotification({ recipient: member.user, sender: req.user.id, type: "community_post", title: "New community post", message: `A member posted in ${community.name}.`, post: post._id, community: community._id, dedupeKey: `community-post:${post._id}:${member.user}` })));
       await notifyMentions({ text: cleanCaption, sender: req.user.id, post: post._id, community: community._id });
     }

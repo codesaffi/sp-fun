@@ -1,5 +1,7 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
+import { FiHeart, FiMessageSquare, FiEdit2, FiTrash2, FiMusic } from "react-icons/fi";
+import { ButtonLoader } from "./Loading";
 
 const API = `${import.meta.env.VITE_API_URL}/api`;
 const initials = (name = "Listener") =>
@@ -17,7 +19,7 @@ function Avatar({ user }) {
   );
 }
 
-export default function PostCard({
+function PostCardComponent({
   post,
   token,
   currentUserId,
@@ -27,8 +29,13 @@ export default function PostCard({
 }) {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [comment, setComment] = useState("");
+  const [submittingComment, setSubmittingComment] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [liking, setLiking] = useState(false);
   const [caption, setCaption] = useState(post.caption);
+
   const headers = { Authorization: `Bearer ${token}` };
   const isOwner = String(post.user?._id || post.user) === String(currentUserId);
   const liked = (post.likes || []).some(
@@ -36,6 +43,8 @@ export default function PostCard({
   );
 
   const like = async () => {
+    if (liking) return;
+    setLiking(true);
     const oldPost = post;
     const nextLikes = liked
       ? post.likes.filter(
@@ -56,12 +65,16 @@ export default function PostCard({
       });
     } catch {
       onChange(oldPost);
+    } finally {
+      setLiking(false);
     }
   };
+
   const addComment = async (event) => {
     event.preventDefault();
     const text = comment.trim();
-    if (!text) return;
+    if (!text || submittingComment) return;
+    setSubmittingComment(true);
     const optimistic = {
       _id: `temp-${Date.now()}`,
       user: { _id: currentUserId, name: "You" },
@@ -80,28 +93,42 @@ export default function PostCard({
       onChange(await response.json());
     } catch {
       onChange(post);
+    } finally {
+      setSubmittingComment(false);
     }
   };
+
   const save = async () => {
     const text = caption.trim();
-    if (!text) return;
-    const response = await fetch(`${API}/posts/${post._id}`, {
-      method: "PATCH",
-      headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify({ caption: text }),
-    });
-    if (response.ok) {
-      onChange(await response.json());
-      setEditing(false);
+    if (!text || saving) return;
+    setSaving(true);
+    try {
+      const response = await fetch(`${API}/posts/${post._id}`, {
+        method: "PATCH",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ caption: text }),
+      });
+      if (response.ok) {
+        onChange(await response.json());
+        setEditing(false);
+      }
+    } finally {
+      setSaving(false);
     }
   };
+
   const remove = async () => {
-    if (!window.confirm("Delete this post?")) return;
-    const response = await fetch(`${API}/posts/${post._id}`, {
-      method: "DELETE",
-      headers,
-    });
-    if (response.ok) onChange({ _id: post._id, deleted: true });
+    if (deleting || !window.confirm("Delete this post?")) return;
+    setDeleting(true);
+    try {
+      const response = await fetch(`${API}/posts/${post._id}`, {
+        method: "DELETE",
+        headers,
+      });
+      if (response.ok) onChange({ _id: post._id, deleted: true });
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -122,7 +149,7 @@ export default function PostCard({
         </div>
       </div>
       <div className="post-art">
-        <span>♫</span>
+        <FiMusic className="text-[#d8fa61] inline-block" />
         <p>{post.type?.replace("_", " ")}</p>
       </div>
       {editing ? (
@@ -131,13 +158,17 @@ export default function PostCard({
             value={caption}
             onChange={(event) => setCaption(event.target.value)}
             maxLength="1000"
+            disabled={saving}
           />
-          <button onClick={save}>Save</button>
+          <button onClick={save} disabled={saving}>
+            {saving ? <ButtonLoader label="Saving" /> : "Save"}
+          </button>
           <button
             onClick={() => {
               setCaption(post.caption);
               setEditing(false);
             }}
+            disabled={saving}
           >
             Cancel
           </button>
@@ -152,16 +183,24 @@ export default function PostCard({
         {post.mood && <span>{post.mood}</span>}
       </div>
       <div className="post-actions">
-        <button onClick={like}>
-          {liked ? "♥ Unlike" : "♡ Like"} {post.likes?.length || 0}
+        <button onClick={like} disabled={liking} className="inline-flex items-center gap-1.5 cursor-pointer">
+          <FiHeart className={liked ? "text-red-400 fill-red-400" : ""} />
+          <span>{liked ? "Liked" : "Like"}</span>
+          <span>{post.likes?.length || 0}</span>
         </button>
-        <button onClick={() => setCommentsOpen((open) => !open)}>
-          ◌ Comment {post.comments?.length || 0}
+        <button onClick={() => setCommentsOpen((open) => !open)} className="inline-flex items-center gap-1.5 cursor-pointer">
+          <FiMessageSquare />
+          <span>Comment</span>
+          <span>{post.comments?.length || 0}</span>
         </button>
         {manage && (isOwner || canModerate) && (
           <>
-            <button onClick={() => setEditing(true)}>Edit</button>
-            <button onClick={remove}>Delete</button>
+            <button onClick={() => setEditing(true)} disabled={saving} className="inline-flex items-center gap-1 cursor-pointer">
+              <FiEdit2 /> Edit
+            </button>
+            <button onClick={remove} disabled={deleting} className="inline-flex items-center gap-1 cursor-pointer text-red-400">
+              {deleting ? <ButtonLoader label="Deleting" /> : <><FiTrash2 /> Delete</>}
+            </button>
           </>
         )}
       </div>
@@ -173,8 +212,11 @@ export default function PostCard({
               onChange={(event) => setComment(event.target.value)}
               maxLength="500"
               placeholder="Add a comment..."
+              disabled={submittingComment}
             />
-            <button>Post</button>
+            <button disabled={submittingComment}>
+              {submittingComment ? <ButtonLoader label="Posting" /> : "Post"}
+            </button>
           </form>
           {(post.comments || []).map((item) => (
             <div className="post-comment" key={item._id}>
@@ -191,3 +233,5 @@ export default function PostCard({
     </article>
   );
 }
+
+export default React.memo(PostCardComponent);

@@ -43,4 +43,5 @@ const diarySchema = new mongoose.Schema(
 );
 
 diarySchema.index({ user: 1, spotifyId: 1, type: 1 }, { unique: true });
+diarySchema.index({ user: 1, createdAt: -1 });
 export default mongoose.model("Diary", diarySchema);

@@ -1,14 +1,16 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
-import Home from "./pages/Home";
-import Dashboard from "./pages/Dashboard";
-import Success from "./pages/Success";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
-import Diary from "./pages/Diary";
-import DiaryDetail from "./pages/DiaryDetail";
-import Communities from "./pages/Communities";
-import Notifications from "./pages/Notifications";
+import { PageSkeleton } from "./components/Loading";
+
+const Home = lazy(() => import("./pages/Home"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Success = lazy(() => import("./pages/Success"));
+const Diary = lazy(() => import("./pages/Diary"));
+const DiaryDetail = lazy(() => import("./pages/DiaryDetail"));
+const Communities = lazy(() => import("./pages/Communities"));
+const Notifications = lazy(() => import("./pages/Notifications"));
 
 function AppRoutes() {
   const location = useLocation();
@@ -16,8 +18,9 @@ function AppRoutes() {
     <>
       {!location.pathname.startsWith("/dashboard") && <Navbar />}
 
-      <Routes>
-        <Route path="/" element={<Home />} />
+      <Suspense fallback={<PageSkeleton />}>
+        <Routes>
+          <Route path="/" element={<Home />} />
 
         <Route
           path="/dashboard"
@@ -48,7 +51,8 @@ function AppRoutes() {
         <Route path="/communities" element={<ProtectedRoute><Communities /></ProtectedRoute>} />
         <Route path="/communities/:slug" element={<ProtectedRoute><Communities /></ProtectedRoute>} />
         <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
-      </Routes>
+        </Routes>
+      </Suspense>
     </>
   );
 }
