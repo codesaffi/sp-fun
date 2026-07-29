@@ -3,11 +3,19 @@ import CommunityMember from "../models/CommunityMember.js";
 import Post from "../models/Post.js";
 import User from "../models/User.js";
 import { AppError } from "../utils/appError.js";
-import { sanitizeString } from "../utils/sanitize.js";
+import {
+  cleanBody,
+  cleanOptionalString,
+  cleanSearch,
+  cleanString,
+  cleanTags,
+  validateSlug,
+} from "../utils/validation.js";
 import { ensureOfficialCommunities, slugify } from "../services/community.service.js";
 import { createNotification } from "../services/notification.service.js";
 
 const memberCount = async (community) => CommunityMember.countDocuments({ community: community._id });
+
 const serialize = async (community, userId) => {
   const [members, membership] = await Promise.all([
     memberCount(community),
@@ -15,11 +23,13 @@ const serialize = async (community, userId) => {
   ]);
   return { ...community.toObject(), memberCount: members, membership: membership || null };
 };
+
 const requireCommunity = async (slug) => {
-  const community = await Community.findOne({ slug });
+  const community = await Community.findOne({ slug: validateSlug(slug) });
   if (!community) throw new AppError("Community not found.", 404);
   return community;
 };
+
 const requireRole = async (community, userId, roles = ["admin"]) => {
   const membership = await CommunityMember.findOne({ community: community._id, user: userId });
   if (!membership || !roles.includes(membership.role)) throw new AppError("You do not have permission to manage this community.", 403);
@@ -28,7 +38,7 @@ const requireRole = async (community, userId, roles = ["admin"]) => {
 
 export const listCommunities = async (req, res) => {
   await ensureOfficialCommunities(req.user.id);
-  const q = sanitizeString(req.query.q || "");
+  const q = req.query.q ? cleanSearch(req.query.q, "Community search") : "";
   const filter = q ? { $text: { $search: q } } : {};
   const communities = await Community.find(filter).sort({ official: -1, createdAt: -1 }).limit(100);
   const values = await Promise.all(communities.map((community) => serialize(community, req.user.id)));
@@ -60,18 +70,23 @@ export const listMyCommunities = async (req, res) => {
 };
 
 export const createCommunity = async (req, res) => {
-  const name = sanitizeString(req.body.name || "");
-  const description = sanitizeString(req.body.description || "");
-  if (!name || !description) throw new AppError("A community name and description are required.", 400);
+  const body = cleanBody(req.body);
+  const name = cleanString(body.name, "Community name", { required: true, max: 80 });
+  const description = cleanString(body.description, "Community description", { required: true, max: 500 });
   const baseSlug = slugify(name);
   if (!baseSlug) throw new AppError("Enter a valid community name.", 400);
   const exists = await Community.exists({ slug: baseSlug });
   if (exists) throw new AppError("A community with this name already exists.", 409);
   const community = await Community.create({
-    name, description, slug: baseSlug, createdBy: req.user.id,
-    coverImage: sanitizeString(req.body.coverImage || ""), icon: sanitizeString(req.body.icon || "♫"),
-    genre: sanitizeString(req.body.genre || ""), privacy: req.body.privacy === "private" ? "private" : "public",
-    tags: Array.isArray(req.body.tags) ? req.body.tags.map(sanitizeString).filter(Boolean).slice(0, 10) : [],
+    name,
+    description,
+    slug: baseSlug,
+    createdBy: req.user.id,
+    coverImage: cleanString(body.coverImage, "Cover image", { max: 1000 }),
+    icon: cleanString(body.icon || "♫", "Community icon", { max: 20 }),
+    genre: cleanString(body.genre, "Community genre", { max: 80 }),
+    privacy: body.privacy === "private" ? "private" : "public",
+    tags: cleanTags(body.tags),
   });
   await CommunityMember.create({ community: community._id, user: req.user.id, role: "admin" });
   res.status(201).json(await serialize(community, req.user.id));
@@ -98,6 +113,7 @@ export const joinCommunity = async (req, res) => {
   }
   res.json(await serialize(community, req.user.id));
 };
+
 export const leaveCommunity = async (req, res) => {
   const community = await requireCommunity(req.params.slug);
   const membership = await CommunityMember.findOne({ community: community._id, user: req.user.id });
@@ -108,15 +124,25 @@ export const leaveCommunity = async (req, res) => {
   if (admin) createNotification({ recipient: admin.user, sender: req.user.id, community: community._id, type: "community_leave", title: "Member left", message: `A member left your ${community.name} community.`, dedupeKey: `community-leave:${community._id}:${req.user.id}:${Date.now()}` }).catch(() => {});
   res.status(204).end();
 };
+
 export const updateCommunity = async (req, res) => {
   const community = await requireCommunity(req.params.slug);
   await requireRole(community, req.user.id);
-  for (const key of ["description", "coverImage", "icon", "genre"]) if (req.body[key] !== undefined) community[key] = sanitizeString(req.body[key]);
-  if (req.body.privacy !== undefined) community.privacy = req.body.privacy === "private" ? "private" : "public";
-  if (Array.isArray(req.body.tags)) community.tags = req.body.tags.map(sanitizeString).filter(Boolean).slice(0, 10);
+  const body = cleanBody(req.body);
+  const description = cleanOptionalString(body.description, "Community description", 500);
+  const coverImage = cleanOptionalString(body.coverImage, "Cover image", 1000);
+  const icon = cleanOptionalString(body.icon, "Community icon", 20);
+  const genre = cleanOptionalString(body.genre, "Community genre", 80);
+  if (description !== undefined) community.description = description;
+  if (coverImage !== undefined) community.coverImage = coverImage;
+  if (icon !== undefined) community.icon = icon;
+  if (genre !== undefined) community.genre = genre;
+  if (body.privacy !== undefined) community.privacy = body.privacy === "private" ? "private" : "public";
+  if (Array.isArray(body.tags)) community.tags = cleanTags(body.tags);
   await community.save();
   res.json(await serialize(community, req.user.id));
 };
+
 export const removeMember = async (req, res) => {
   const community = await requireCommunity(req.params.slug);
   await requireRole(community, req.user.id);
@@ -126,15 +152,18 @@ export const removeMember = async (req, res) => {
   await member.deleteOne();
   res.status(204).end();
 };
+
 export const addRule = async (req, res) => {
   const community = await requireCommunity(req.params.slug);
   await requireRole(community, req.user.id);
-  const title = sanitizeString(req.body.title || ""), description = sanitizeString(req.body.description || "");
-  if (!title || !description) throw new AppError("A rule title and description are required.", 400);
+  const body = cleanBody(req.body);
+  const title = cleanString(body.title, "Rule title", { required: true, max: 100 });
+  const description = cleanString(body.description, "Rule description", { required: true, max: 500 });
   community.rules.push({ title, description });
   await community.save();
   res.json(await serialize(community, req.user.id));
 };
+
 export const listCommunityPosts = async (req, res) => {
   const community = await requireCommunity(req.params.slug);
   const membership = await CommunityMember.findOne({ community: community._id, user: req.user.id });
@@ -144,6 +173,7 @@ export const listCommunityPosts = async (req, res) => {
     .populate("comments.user", "name avatar");
   res.json(posts);
 };
+
 export const listCommunityMembers = async (req, res) => {
   const community = await requireCommunity(req.params.slug);
   const membership = await CommunityMember.findOne({ community: community._id, user: req.user.id });

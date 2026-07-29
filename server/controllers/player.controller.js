@@ -27,10 +27,12 @@ export const getRecentlyPlayed = async (req, res) => {
     res.json(tracks);
   } catch (error) {
     if (error instanceof AppError) throw error;
-    console.error(
-      "Recently played Spotify request failed:",
-      error.response?.data || error.message,
-    );
+    if (process.env.NODE_ENV !== "production") {
+      console.error(
+        "Recently played Spotify request failed:",
+        error.response?.status || error.message,
+      );
+    }
     throw new AppError(
       "Failed to fetch recently played tracks",
       error.response?.status || 500,

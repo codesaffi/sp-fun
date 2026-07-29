@@ -5,6 +5,7 @@ import { AppError } from "../utils/appError.js";
 import { analyseUser } from "../services/musicInsights.service.js";
 import { requestSpotifyAccessToken } from "../services/spotify.service.js";
 import { createNotification } from "../services/notification.service.js";
+import { cleanOptionalString, cleanString } from "../utils/validation.js";
 
 const spotifyApiGet = async (accessToken, url) => {
   const response = await axios.get(url, {
@@ -14,7 +15,8 @@ const spotifyApiGet = async (accessToken, url) => {
 };
 
 export const spotifyCallback = async (req, res) => {
-  const { code, error: spotifyError } = req.query;
+  const code = req.query.code ? cleanString(req.query.code, "Spotify authorization code", { max: 1000 }) : "";
+  const spotifyError = cleanOptionalString(req.query.error, "Spotify authorization error", 200);
 
   if (spotifyError) {
     throw new AppError(`Spotify authorization failed: ${spotifyError}`, 400);
@@ -102,10 +104,12 @@ export const spotifyCallback = async (req, res) => {
     const redirectUrl = process.env.CLIENT_URL || "http://localhost:5173";
     res.redirect(`${redirectUrl}/success?token=${token}`);
   } catch (error) {
-    console.error(
-      "Spotify callback failed:",
-      error.response?.data || error.message,
-    );
+    if (process.env.NODE_ENV !== "production") {
+      console.error(
+        "Spotify callback failed:",
+        error.response?.data?.error || error.message,
+      );
+    }
     throw new AppError("Spotify login failed", 500);
   }
 };

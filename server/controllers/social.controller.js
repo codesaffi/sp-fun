@@ -10,6 +10,19 @@ import {
 } from "../services/musicInsights.service.js";
 import { refreshSpotifyStats } from "../services/spotify.service.js";
 import { createNotification } from "../services/notification.service.js";
+import { AppError } from "../utils/appError.js";
+import {
+  cleanBody,
+  cleanOptionalString,
+  cleanString,
+  validateEnum,
+} from "../utils/validation.js";
+
+const normalise = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase();
+const unique = (items) => [...new Set(items.filter(Boolean))];
 
 const publicUser = (user) => ({
   _id: user._id,
@@ -23,7 +36,7 @@ const publicUser = (user) => ({
 
 export const myInsights = async (req, res) => {
   const user = await User.findById(req.user.id);
-  if (!user) return res.status(404).json({ message: "User not found" });
+  if (!user) throw new AppError("User not found", 404);
   const refreshing = req.query.refresh === "true";
   if (refreshing) await refreshSpotifyStats(user);
   const signals = profileSignals(user);
@@ -50,10 +63,11 @@ export const myInsights = async (req, res) => {
 
 export const discover = async (req, res) => {
   const me = await User.findById(req.user.id);
+  if (!me) throw new AppError("User not found", 404);
   const users = await User.find({ _id: { $ne: req.user.id } }).select(
     "-accessToken -refreshToken",
   );
-  const query = String(req.query.q || "").toLowerCase();
+  const query = cleanOptionalString(req.query.q, "Search query", 100)?.toLowerCase() || "";
   const results = users
     .map((user) => ({
       ...publicUser(user),
@@ -84,30 +98,40 @@ export const genres = async (req, res) => {
         .map(([name, users]) => ({ name, users }))
         .sort((a, b) => b.users - a.users),
     );
-  } catch {
-    res.status(500).json({ message: "Could not load genres." });
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    throw new AppError("Could not load genres.", 500);
   }
 };
 
 export const updateProfile = async (req, res) => {
   try {
+    const body = cleanBody(req.body);
     const allowed = ["bio", "country", "gender", "lookingFor"];
-    const changes = Object.fromEntries(
-      allowed
-        .filter((key) => key in req.body)
-        .map((key) => [key, req.body[key]]),
-    );
+    const changes = {};
+    if ("bio" in body) changes.bio = cleanString(body.bio, "Bio", { max: 500 });
+    if ("country" in body) changes.country = cleanString(body.country, "Country", { max: 80 });
+    if ("gender" in body)
+      changes.gender = validateEnum(body.gender, ["male", "female", "nonbinary", "other", ""], "gender", "");
+    if ("lookingFor" in body)
+      changes.lookingFor = validateEnum(body.lookingFor, ["male", "female", "everyone", ""], "lookingFor", "everyone");
+    for (const key of Object.keys(body)) {
+      if (!allowed.includes(key)) delete body[key];
+    }
     const user = await User.findByIdAndUpdate(req.user.id, changes, {
       new: true,
+      runValidators: true,
     }).select("-accessToken -refreshToken");
     res.json(publicUser(user));
-  } catch {
-    res.status(400).json({ message: "Could not update profile." });
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    throw new AppError("Could not update profile.", 400);
   }
 };
 
 export const leaderboard = async (req, res) => {
   const me = await User.findById(req.user.id);
+  if (!me) throw new AppError("User not found", 404);
   const users = await User.find({ _id: { $ne: req.user.id } }).select(
     "-accessToken -refreshToken",
   );
@@ -133,7 +157,8 @@ export const compare = async (req, res) => {
     User.findById(req.user.id),
     User.findById(req.params.userId),
   ]);
-  if (!user) return res.status(404).json({ message: "User not found" });
+  if (!me) throw new AppError("User not found", 404);
+  if (!user) throw new AppError("User not found", 404);
   const result = compatibility(me, user);
   res.json({
     user: publicUser(user),

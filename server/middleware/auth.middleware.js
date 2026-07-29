@@ -7,8 +7,8 @@ export const verifyToken = (req, res, next) => {
     return next(new AppError("Authorization token missing", 401));
   }
 
-  const token = authHeader.split(" ")[1];
-  if (!token) {
+  const [scheme, token] = authHeader.split(" ");
+  if (scheme !== "Bearer" || !token) {
     return next(new AppError("Authorization token missing", 401));
   }
 

@@ -3,6 +3,11 @@ import { asyncHandler } from "../middleware/asyncHandler.js";
 import { verifyToken } from "../middleware/auth.middleware.js";
 import { validateObjectId } from "../middleware/validateObjectId.js";
 import {
+  interactionLimiter,
+  searchLimiter,
+  writeLimiter,
+} from "../middleware/security.middleware.js";
+import {
   addDiaryComment,
   createDiary,
   deleteDiary,
@@ -16,7 +21,7 @@ import {
 
 const router = express.Router();
 router.use(verifyToken);
-router.get("/search", asyncHandler(searchSpotify));
+router.get("/search", searchLimiter, asyncHandler(searchSpotify));
 router.get("/details/:type/:spotifyId", asyncHandler(spotifyDetails));
 router.get("/me", asyncHandler(listMyDiary));
 router.get(
@@ -24,8 +29,8 @@ router.get(
   validateObjectId("userId"),
   asyncHandler(listUserDiary),
 );
-router.post("/", asyncHandler(createDiary));
-router.put("/:entryId", validateObjectId("entryId"), asyncHandler(updateDiary));
+router.post("/", writeLimiter, asyncHandler(createDiary));
+router.put("/:entryId", validateObjectId("entryId"), writeLimiter, asyncHandler(updateDiary));
 router.delete(
   "/:entryId",
   validateObjectId("entryId"),
@@ -34,11 +39,13 @@ router.delete(
 router.post(
   "/:entryId/like",
   validateObjectId("entryId"),
+  interactionLimiter,
   asyncHandler(toggleDiaryLike),
 );
 router.post(
   "/:entryId/comments",
   validateObjectId("entryId"),
+  writeLimiter,
   asyncHandler(addDiaryComment),
 );
 export default router;

@@ -321,10 +321,12 @@ export const advancedSpotifyTest = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error(
-      "Advanced Spotify Error:",
-      error.response?.data || error.message,
-    );
+    if (process.env.NODE_ENV !== "production") {
+      console.error(
+        "Advanced Spotify Error:",
+        error.response?.status || error.message,
+      );
+    }
     if (error instanceof AppError) throw error;
     throw new AppError(
       "Failed to load Spotify insights",

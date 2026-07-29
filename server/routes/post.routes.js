@@ -3,6 +3,10 @@ import { asyncHandler } from "../middleware/asyncHandler.js";
 import { validateObjectId } from "../middleware/validateObjectId.js";
 import { verifyToken } from "../middleware/auth.middleware.js";
 import {
+  interactionLimiter,
+  writeLimiter,
+} from "../middleware/security.middleware.js";
+import {
   addComment,
   createPost,
   deletePost,
@@ -20,17 +24,19 @@ router.get(
   validateObjectId("userId"),
   asyncHandler(listPostsByUser),
 );
-router.post("/", asyncHandler(createPost));
-router.patch("/:postId", validateObjectId("postId"), asyncHandler(updatePost));
+router.post("/", writeLimiter, asyncHandler(createPost));
+router.patch("/:postId", validateObjectId("postId"), writeLimiter, asyncHandler(updatePost));
 router.delete("/:postId", validateObjectId("postId"), asyncHandler(deletePost));
 router.post(
   "/:postId/like",
   validateObjectId("postId"),
+  interactionLimiter,
   asyncHandler(toggleLike),
 );
 router.post(
   "/:postId/comments",
   validateObjectId("postId"),
+  writeLimiter,
   asyncHandler(addComment),
 );
 export default router;

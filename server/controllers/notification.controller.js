@@ -1,10 +1,11 @@
 import Notification from "../models/Notification.js";
 import { AppError } from "../utils/appError.js";
+import { parsePaginationLimit, validateDate } from "../utils/validation.js";
 
 export const listNotifications = async (req, res) => {
-  const limit = Math.min(Math.max(Number(req.query.limit) || 30, 1), 50);
+  const limit = parsePaginationLimit(req.query.limit, { fallback: 30, min: 1, max: 50 });
   const filter = { recipient: req.user.id };
-  if (req.query.before) filter.createdAt = { $lt: new Date(req.query.before) };
+  if (req.query.before) filter.createdAt = { $lt: validateDate(req.query.before, "notification cursor") };
   const notifications = await Notification.find(filter).sort({ createdAt: -1 }).limit(limit).populate("sender", "name avatar").populate("community", "name slug icon").populate("relatedUser", "name avatar");
   const unread = await Notification.countDocuments({ recipient: req.user.id, isRead: false });
   res.json({ notifications, unread, next: notifications.at(-1)?.createdAt || null });

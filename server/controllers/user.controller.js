@@ -1,4 +1,5 @@
 import User from "../models/User.js";
+import { AppError } from "../utils/appError.js";
 
 export const getMe = async (req, res) => {
   try {
@@ -6,11 +7,12 @@ export const getMe = async (req, res) => {
       "-accessToken -refreshToken", // exclude tokens for security
     );
 
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) throw new AppError("User not found", 404);
 
     res.json(user);
   } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    if (error instanceof AppError) throw error;
+    throw new AppError("Server error", 500);
   }
 };
 
@@ -25,8 +27,8 @@ export const getAllUsers = async (req, res) => {
 
     res.json(users);
   } catch (error) {
-    console.error("Error fetching users:", error);
-    res.status(500).json({ message: "Server error" });
+    if (process.env.NODE_ENV !== "production") console.error("Error fetching users:", error.message);
+    throw new AppError("Server error", 500);
   }
 };
 
@@ -38,11 +40,12 @@ export const getUserById = async (req, res) => {
       "-accessToken -refreshToken", // exclude tokens for security
     );
 
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) throw new AppError("User not found", 404);
 
     res.json(user);
   } catch (error) {
-    console.error("Error fetching user:", error);
-    res.status(500).json({ message: "Server error" });
+    if (error instanceof AppError) throw error;
+    if (process.env.NODE_ENV !== "production") console.error("Error fetching user:", error.message);
+    throw new AppError("Server error", 500);
   }
 };

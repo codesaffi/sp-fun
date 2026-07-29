@@ -73,7 +73,9 @@ export default function Dashboard() {
     try {
       const r = await fetch(`${API_URL}/api/posts`, { headers });
       if (r.ok) setPosts(await r.json());
-    } catch {}
+    } catch {
+      // Keep the dashboard usable if the feed request fails.
+    }
   };
   useEffect(() => {
     if (token) loadPosts();
@@ -102,7 +104,6 @@ export default function Dashboard() {
     { id: "logout", label: "Logout", icon: <FiLogOut /> },
   ];
   const user = insights?.user;
-  const demo = !insights;
   const genres = insights?.topGenres?.length
     ? insights.topGenres
     : ["indie pop", "dream pop", "alternative", "bedroom pop"];

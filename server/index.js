@@ -1,6 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import { connectDB } from "./config/db.js";
+import { validateEnv } from "./config/env.js";
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import playerRoutes from "./routes/player.routes.js";
@@ -17,6 +18,7 @@ import {
 } from "./middleware/error.middleware.js";
 
 dotenv.config();
+validateEnv();
 await connectDB();
 
 const app = express();
@@ -32,9 +34,6 @@ app.use("/api/diary", diaryRoutes);
 app.use("/api/communities", communityRoutes);
 app.use("/api/notifications", notificationRoutes);
 
-app.use(notFoundHandler);
-app.use(errorHandler);
-
 const port = process.env.PORT || 5000;
 
 app.get("/", (req, res) => {
@@ -42,6 +41,9 @@ app.get("/", (req, res) => {
     status: "Backend Running 🚀",
   });
 });
+
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 if (process.env.NODE_ENV !== "production") {
   app.listen(port, () => {
